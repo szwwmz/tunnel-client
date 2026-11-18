@@ -57,6 +57,12 @@ ls -lh "$OUT"
 # 上传到 GitHub Release（附件形式，不入库）
 # 需要 GH_TOKEN 或 GITHUB_TOKEN（classic: repo；fine-grained: Contents 读写）
 # 跳过方式：SKIP_RELEASE=1 scripts/package_all.sh
+# 本机令牌：$ROOT/secrets.env（被 .gitignore 的 secrets.* 规则忽略，不入库）
+if [ -z "${GH_TOKEN:-}" ] && [ -f "$ROOT/secrets.env" ]; then
+    # shellcheck disable=SC1091
+    set -a; . "$ROOT/secrets.env"; set +a
+fi
+
 upload_release() {
     local token="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
     local url slug owner repo tag api rel_id asset_id
