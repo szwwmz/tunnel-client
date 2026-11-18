@@ -1,4 +1,4 @@
-# Tunnel Client
+# tunnel-client
 
 English | [简体中文](README.zh-CN.md)
 
@@ -177,5 +177,7 @@ under "About → Third-party").
 
 ## License
 
-Proprietary and confidential. All rights reserved. See [LICENSE](LICENSE).
-Third-party components remain under their own licenses as listed above.
+MIT License - see [LICENSE](LICENSE). You may use, modify, distribute and
+sublicense this software, including commercially, provided the copyright notice
+and permission notice are retained. Third-party components remain under their
+own licenses as listed above.

@@ -204,7 +204,7 @@ class VpnClientService : VpnService() {
 
         try {
             val builder = Builder()
-                .setSession(L.t("VPN 客户端", "VPN Client"))
+                .setSession(L.t("tunnel-client", "tunnel-client"))
                 .setMtu(1400)
                 .addAddress(addr, 32)
                 .setBlocking(false)
@@ -400,7 +400,7 @@ class VpnClientService : VpnService() {
                     NotificationManager.IMPORTANCE_LOW)
             )
             Notification.Builder(this, CHANNEL_ID)
-                .setContentTitle(L.t("VPN 客户端", "VPN Client"))
+                .setContentTitle(L.t("tunnel-client", "tunnel-client"))
                 .setContentText(text)
                 .setSmallIcon(android.R.drawable.ic_dialog_info)
                 .setContentIntent(pi)
@@ -408,7 +408,7 @@ class VpnClientService : VpnService() {
                 .build()
         } else {
             Notification.Builder(this)
-                .setContentTitle(L.t("VPN 客户端", "VPN Client"))
+                .setContentTitle(L.t("tunnel-client", "tunnel-client"))
                 .setContentText(text)
                 .setSmallIcon(android.R.drawable.ic_dialog_info)
                 .setContentIntent(pi)

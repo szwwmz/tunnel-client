@@ -31,10 +31,10 @@
 #include "vpncore/vpn_tun.h"
 #include "vpncore/vpn_net.h"
 
-#define APP_NAME_W    L"VPN 客户端"
+#define APP_NAME_W    L"tunnel-client"
 #define APP_VERSION_W L"1.4.0"
 #define APP_AUTHOR_W  L"wwm"
-#define APP_MAIL_W    L"wwme@163.com"
+#define APP_MAIL_W    L"szwwmz@gmail.com"
 #define APP_CLASS_W   L"VpnClientWnd"
 
 /* ---------------- 多语言 ----------------
@@ -59,8 +59,8 @@ enum {
 
 /* 版本说明：中文保留完整历史，英文只列当前版本要点（历史全文见中文版） */
 #define ABOUT_ZH_TEXT \
-    L"VPN 客户端 v" APP_VERSION_W L"\n" \
-    L"作者：wwm      联系：wwme@163.com      协议：SSTP / L2TP / PPTP\n" \
+    L"tunnel-client v" APP_VERSION_W L"\n" \
+    L"作者：wwm      联系：szwwmz@gmail.com      协议：SSTP / L2TP / PPTP\n" \
     L"\n" \
     L"v1.4.0\n" \
     L"  · Windows 界面支持中英双语：点标题栏右上角「中文 / EN」或托盘菜单\n" \
@@ -110,8 +110,8 @@ enum {
     L"  · L2TP / PPTP 基础支持，DNS 由服务器下发并写入网卡"
 
 #define ABOUT_EN_TEXT \
-    L"VPN Client v" APP_VERSION_W L"\n" \
-    L"Author: wwm      Contact: wwme@163.com      Protocols: SSTP / L2TP / PPTP\n" \
+    L"tunnel-client v" APP_VERSION_W L"\n" \
+    L"Author: wwm      Contact: szwwmz@gmail.com      Protocols: SSTP / L2TP / PPTP\n" \
     L"\n" \
     L"v1.4.0\n" \
     L"  - Bilingual UI (Chinese/English): switch from the banner chip in the\n" \
@@ -126,7 +126,7 @@ enum {
     L"Older entries are listed in the Chinese release notes."
 
 static const wchar_t *const STR_TAB[S_COUNT][2] = {
-    [S_APP_NAME]        = { L"VPN 客户端", L"VPN Client" },
+    [S_APP_NAME]        = { L"tunnel-client", L"tunnel-client" },
     [S_ABOUT_TITLE]     = { L"版本说明", L"Release notes" },
     [S_ABOUT]           = { ABOUT_ZH_TEXT, ABOUT_EN_TEXT },
     [S_PROTO]           = { L"协议", L"Protocol" },
@@ -151,8 +151,8 @@ static const wchar_t *const STR_TAB[S_COUNT][2] = {
                             L"    ·    lower priority than existing routes, LAN access unaffected" },
     [S_BANNER_META]     = { L"SSTP / L2TP / PPTP      v%ls      作者 %ls",
                             L"SSTP / L2TP / PPTP      v%ls      by %ls" },
-    [S_FOOTER]          = { L"VPN 客户端 v%ls    ·    作者 %ls <" APP_MAIL_W L">",
-                            L"VPN Client v%ls    ·    by %ls <" APP_MAIL_W L">" },
+    [S_FOOTER]          = { L"tunnel-client v%ls    ·    作者 %ls <" APP_MAIL_W L">",
+                            L"tunnel-client v%ls    ·    by %ls <" APP_MAIL_W L">" },
     [S_TRAY_SHOW]       = { L"显示主界面", L"Show window" },
     [S_TRAY_CONNECT]    = { L"连接", L"Connect" },
     [S_TRAY_DISCONNECT] = { L"断开", L"Disconnect" },
@@ -170,7 +170,7 @@ static const wchar_t *const STR_TAB[S_COUNT][2] = {
     [S_ST_IDLE]         = { L"未连接", L"Not connected" },
     [S_MSG_NEED_HOST]   = { L"请填写服务器地址", L"Please enter the server address" },
     [S_MSG_TITLE]       = { L"提示", L"Notice" },
-    [S_CLOSE_TITLE]     = { L"VPN 客户端仍在运行", L"VPN client is still running" },
+    [S_CLOSE_TITLE]     = { L"tunnel-client 仍在运行", L"tunnel-client is still running" },
     [S_CLOSE_BODY]      = { L"已最小化到托盘，双击图标可恢复窗口；托盘菜单可退出。",
                             L"Minimized to the tray. Double-click the icon to restore it; use the tray menu to exit." },
 };
@@ -932,7 +932,7 @@ static void config_save(void)
     if (!f)
         return;
     obf_enc(g_cfg_pass, pass_obf, sizeof(pass_obf));
-    fprintf(f, "; VPN client configuration (generated automatically, by wwm <wwme@163.com>)\n");
+    fprintf(f, "; VPN client configuration (generated automatically, by wwm <szwwmz@gmail.com>)\n");
     fprintf(f, "; debug=1 enables per-packet debug logging (restart required); keep 0 normally\n");
     fprintf(f, "debug=%d\n", g_cfg_debug);
     fprintf(f, "; lang: zh = Chinese UI, en = English UI\n");
@@ -1959,7 +1959,7 @@ static LRESULT CALLBACK wnd_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
     case WM_CLOSE:
         if (!g_allow_close && g_tray_added) {
             ShowWindow(hwnd, SW_HIDE);
-            tray_balloon(L"VPN 客户端仍在运行",
+            tray_balloon(L"tunnel-client仍在运行",
                          L"已最小化到托盘，双击图标可恢复窗口；托盘菜单可退出。");
             return 0;
         }
