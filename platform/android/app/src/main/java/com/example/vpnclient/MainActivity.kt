@@ -13,6 +13,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.net.VpnService
 import android.os.Bundle
 import android.text.InputType
@@ -78,6 +79,8 @@ class MainActivity : Activity(), UiBus.Listener {
     private lateinit var vpnDnsBox: CheckBox
     private lateinit var debugBox: CheckBox
     private lateinit var warnText: TextView
+    private lateinit var statusCard: LinearLayout
+    private lateinit var statusDot: TextView
     private lateinit var statusText: TextView
     private lateinit var statsText: TextView
     private lateinit var logText: TextView
@@ -253,24 +256,44 @@ class MainActivity : Activity(), UiBus.Listener {
         btnRow.addView(btnDisconnect, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         root.addView(btnRow)
 
+        /* 状态条：圆点 + 状态文字，用颜色区分断开 / 连接中 / 已连接 / 失败，
+         * 放在按钮正下方，不用翻日志就能看出当前处在哪一步 */
+        statusCard = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(14), dp(12), dp(14), dp(12))
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(14) }
+        }
+        statusDot = TextView(this).apply {
+            text = "●"
+            textSize = 18f
+            setPadding(0, 0, dp(8), 0)
+        }
+        statusText = TextView(this).apply {
+            text = L.t("未连接", "Not connected")
+            textSize = 16f
+            setTypeface(typeface, Typeface.BOLD)
+        }
+        statusCard.addView(statusDot)
+        statusCard.addView(statusText, LinearLayout.LayoutParams(
+            0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        root.addView(statusCard)
+
         val about = Button(this).apply {
             text = L.t("版本说明", "Release notes")
             setOnClickListener { showAbout() }
         }
         root.addView(about)
 
-        // 状态
-        statusText = TextView(this).apply {
-            text = L.t("未连接", "Not connected")
-            textSize = 14f
-            setPadding(0, dp(8), 0, 0)
-        }
+        // 收发统计
         statsText = TextView(this).apply {
             text = L.t("收发 0 B / 0 B", "Traffic 0 B / 0 B")
             textSize = 12f
             setTextColor(Color.GRAY)
+            setPadding(0, dp(10), 0, 0)
         }
-        root.addView(statusText)
         root.addView(statsText)
 
         // 日志
@@ -652,6 +675,43 @@ class MainActivity : Activity(), UiBus.Listener {
             VpnCore.STATE_FAILED -> L.t("连接失败", "Failed")
             else -> L.t("未连接", "Not connected")
         }
+        /* 颜色语义：灰=断开、橙=连接中/认证中/重连中、绿=已连接、红=失败 */
+        val connected = state == VpnCore.STATE_CONNECTED
+        val failed = state == VpnCore.STATE_FAILED
+        val busy = state == VpnCore.STATE_CONNECTING ||
+                state == VpnCore.STATE_AUTHENTICATING ||
+                state == VpnCore.STATE_RECONNECTING
+        val fg = when {
+            connected -> 0xFF166534.toInt()
+            failed -> 0xFF991B1B.toInt()
+            busy -> 0xFF92400E.toInt()
+            else -> 0xFF374151.toInt()
+        }
+        val bg = when {
+            connected -> 0xFFF0FDF4.toInt()
+            failed -> 0xFFFEF2F2.toInt()
+            busy -> 0xFFFFFBEB.toInt()
+            else -> 0xFFF3F4F6.toInt()
+        }
+        val stroke = when {
+            connected -> 0xFFBBF7D0.toInt()
+            failed -> 0xFFFECACA.toInt()
+            busy -> 0xFFFDE68A.toInt()
+            else -> 0xFFE5E7EB.toInt()
+        }
+        val dot = when {
+            connected -> 0xFF22C55E.toInt()
+            failed -> 0xFFEF4444.toInt()
+            busy -> 0xFFF59E0B.toInt()
+            else -> 0xFF9CA3AF.toInt()
+        }
+        statusCard.background = GradientDrawable().apply {
+            cornerRadius = dp(10).toFloat()
+            setColor(bg)
+            setStroke(dp(1), stroke)
+        }
+        statusDot.setTextColor(dot)
+        statusText.setTextColor(fg)
         statusText.text = if (detail.isBlank()) name else "$name · $detail"
         val running = state == VpnCore.STATE_CONNECTED ||
                 state == VpnCore.STATE_CONNECTING ||
