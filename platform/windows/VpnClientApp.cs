@@ -56,7 +56,7 @@ namespace VpnClient
             {
                 Console.Error.WriteLine(e.Message);
                 Console.Error.WriteLine(
-                    "用法: VpnClientApp --host <地址> [--port 端口] --user <用户名> --pass <密码> " +
+                    "Usage: VpnClientApp --host <addr> [--port PORT] --user <USER> --pass <PASS> " +
                     "[--proto sstp|l2tp|pptp] [--ca ca.pem] [--ignore-cert] [--mtu 1400]");
                 return 2;
             }
@@ -70,7 +70,7 @@ namespace VpnClient
             int rc = Native.vpn_capi_start(_handle);
             if (rc != 0)
             {
-                Console.Error.WriteLine("启动失败: " + Native.ErrorText(rc));
+                Console.Error.WriteLine("start failed: " + Native.ErrorText(rc));
                 Native.vpn_capi_destroy(_handle);
                 return 1;
             }
@@ -84,11 +84,11 @@ namespace VpnClient
             int waitRc = Native.vpn_capi_wait(_handle, 30000);
             if (waitRc != 0)
             {
-                Console.Error.WriteLine("连接失败: " + Native.ErrorText(waitRc));
+                Console.Error.WriteLine("connect failed: " + Native.ErrorText(waitRc));
                 Native.vpn_capi_destroy(_handle);
                 return 1;
             }
-            Console.WriteLine("已连接，Ctrl+C 退出");
+            Console.WriteLine("connected, press Ctrl+C to quit");
 
             while (_running)
             {
@@ -131,11 +131,11 @@ namespace VpnClient
                         ctx = IntPtr.Zero
                     };
                     int rc = Native.vpn_capi_attach_tun(h, ref tun);
-                    Console.WriteLine(rc == 0 ? $"隧道已挂接 {addr}" : $"挂接 TUN 失败 {rc}");
+                    Console.WriteLine(rc == 0 ? $"tunnel attached {addr}" : $"failed to attach TUN {rc}");
                 }
                 catch (Exception e)
                 {
-                    Console.Error.WriteLine("建立隧道失败: " + e.Message);
+                    Console.Error.WriteLine("failed to establish the tunnel: " + e.Message);
                 }
             }) { IsBackground = true }.Start();
         }
@@ -201,7 +201,7 @@ namespace VpnClient
             }
             catch (Exception e)
             {
-                Console.Error.WriteLine($"执行 {exe} 失败: {e.Message}");
+                Console.Error.WriteLine($"failed to run {exe}: {e.Message}");
             }
         }
 
@@ -233,11 +233,11 @@ namespace VpnClient
                         a.Proto = p switch { "l2tp" => 1, "pptp" => 2, _ => 0 };
                         break;
                     default:
-                        throw new ArgumentException("未知参数: " + argv[i]);
+                        throw new ArgumentException("unknown option: " + argv[i]);
                 }
             }
             if (a.Host.Length == 0 || a.User.Length == 0)
-                throw new ArgumentException("必须提供 --host 与 --user");
+                throw new ArgumentException("--host and --user are required");
             CurrentAdapterName = a.Adapter;
             return a;
         }
@@ -288,7 +288,7 @@ namespace VpnClient
             if (handle == IntPtr.Zero)
             {
                 int n = Array.IndexOf(err, (byte)0);
-                Console.Error.WriteLine("创建失败: " +
+                Console.Error.WriteLine("creation failed: " +
                     Encoding.UTF8.GetString(err, 0, n < 0 ? err.Length : n));
                 return IntPtr.Zero;
             }

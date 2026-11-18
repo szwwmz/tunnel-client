@@ -110,9 +110,9 @@ static int sstp_write(vpn_sstp *s, const void *data, size_t len)
         return VPN_ERR_CLOSED;
     int rc = vpn_tls_write(s->tls, data, len, s->p.io_timeout_ms);
     if (rc < 0)
-        VPN_ERROR("SSTP 发送失败: %s", vpn_strerror(rc));
+        VPN_ERROR("SSTP send failed: %s", vpn_strerror(rc));
     else
-        VPN_DEBUG("SSTP: TLS 写入 %d/%zu 字节", rc, len);
+        VPN_DEBUG("SSTP: TLS wrote %d/%zu bytes", rc, len);
     return rc < 0 ? rc : VPN_OK;
 }
 
@@ -124,7 +124,7 @@ static int sstp_send_control(vpn_sstp *s, uint16_t type, const uint8_t *attrs, s
     if (len < 0)
         return VPN_ERR_INVALID;
 
-    VPN_DEBUG("SSTP -> 控制报文 type=%u len=%d attrs=%zu", type, len, alen);
+    VPN_DEBUG("SSTP -> control packet type=%u len=%d attrs=%zu", type, len, alen);
     return sstp_write(s, pkt, (size_t)len);
 }
 
@@ -237,17 +237,17 @@ static int sstp_send_connected(vpn_sstp *s)
         int rc = n < 0 ? VPN_ERR_INVALID : sstp_send_control(s, SSTP_MSG_CALL_CONNECTED, attrs, (size_t)n);
         if (rc == VPN_OK) {
             s->connected_sent = true;
-            VPN_INFO("SSTP: 已发送 CALL_CONNECTED");
+            VPN_INFO("SSTP: CALL_CONNECTED sent");
         }
         return rc;
     }
 
     if (!s->has_mppe) {
-        VPN_WARN("SSTP: 服务器要求 Crypto-Binding 但未取得 MPPE 密钥");
+        VPN_WARN("SSTP: server requires Crypto-Binding but MPPE keys are not available yet");
         return VPN_ERR_INVALID;
     }
     if (sstp_cb_request(s->ack_pkt, s->ack_len, nonce, &hash_mask) != VPN_OK) {
-        VPN_ERROR("SSTP: ACK 里找不到 Crypto-Binding-Request 的 nonce");
+        VPN_ERROR("SSTP: no Crypto-Binding-Request nonce found in ACK");
         return VPN_ERR_INVALID;
     }
 
@@ -264,12 +264,12 @@ static int sstp_send_connected(vpn_sstp *s)
     md = sstp_cb_md(hash_id, &hash_len);
     if (hash_id == SSTP_HASH_PROTOCOL_SHA256) {
         if (vpn_tls_peer_cert_sha256(s->tls, cert_hash) != VPN_OK) {
-            VPN_ERROR("SSTP: 取不到服务器证书 SHA-256，无法完成 Crypto-Binding");
+            VPN_ERROR("SSTP: cannot read server certificate SHA-256, cannot do Crypto-Binding");
             return VPN_ERR_INVALID;
         }
     } else {
         if (vpn_tls_peer_cert_sha1(s->tls, cert_hash) != VPN_OK) {
-            VPN_ERROR("SSTP: 取不到服务器证书 SHA-1，无法完成 Crypto-Binding");
+            VPN_ERROR("SSTP: cannot read server certificate SHA-1, cannot do Crypto-Binding");
             return VPN_ERR_INVALID;
         }
     }
@@ -306,25 +306,25 @@ static int sstp_send_connected(vpn_sstp *s)
     }
 
     if (sstp_derive_cmk(hlak, md, cmk_len, cmk) != VPN_OK) {
-        VPN_ERROR("SSTP: CMK 派生失败");
+        VPN_ERROR("SSTP: CMK derivation failed");
         return VPN_ERR_INVALID;
     }
     /* Compound MAC = HMAC(CMK, 整条 112 字节，MAC 与 Padding 置 0) */
     if (!HMAC(md, cmk, (int)cmk_len, pkt, sizeof(pkt), mac, &maclen) || maclen < hash_len) {
-        VPN_ERROR("SSTP: Compound MAC 计算失败");
+        VPN_ERROR("SSTP: compound MAC computation failed");
         return VPN_ERR_INVALID;
     }
     memcpy(pkt + 80, mac, hash_len);
 
-    VPN_INFO("SSTP: CALL_CONNECTED Crypto-Binding (%s, 服务器位图=0x%02x, CMK=%s CMAC=%s)",
+    VPN_INFO("SSTP: CALL_CONNECTED Crypto-Binding (%s, server mask=0x%02x, CMK=%s CMAC=%s)",
              hash_id == SSTP_HASH_PROTOCOL_SHA256 ? "SHA256" : "SHA1", hash_mask,
              vpn_hexdump(cmk, cmk_len), vpn_hexdump(mac, hash_len));
-    VPN_DEBUG("SSTP: CALL_CONNECTED 原始报文 %s", vpn_hexdump(pkt, sizeof(pkt)));
+    VPN_DEBUG("SSTP: raw CALL_CONNECTED packet %s", vpn_hexdump(pkt, sizeof(pkt)));
 
     int rc = sstp_write(s, pkt, sizeof(pkt));
     if (rc == VPN_OK) {
         s->connected_sent = true;
-        VPN_INFO("SSTP: 已发送 CALL_CONNECTED");
+        VPN_INFO("SSTP: CALL_CONNECTED sent");
     }
     return rc;
 }
@@ -350,7 +350,7 @@ static void sstp_handle_control(vpn_sstp *s, const uint8_t *pkt, size_t len)
     size_t pos = 8;
 
     if (len < 8) {
-        VPN_WARN("SSTP: 控制报文过短 (%zu 字节)", len);
+        VPN_WARN("SSTP: control packet too short (%zu bytes)", len);
         return;
     }
 
@@ -358,7 +358,7 @@ static void sstp_handle_control(vpn_sstp *s, const uint8_t *pkt, size_t len)
     nattrs = vpn_be16(pkt + 6);
     (void)nattrs;
 
-    VPN_DEBUG("SSTP <- 控制报文 type=%u len=%zu %s", type, len, vpn_hexdump(pkt, len));
+    VPN_DEBUG("SSTP <- control packet type=%u len=%zu %s", type, len, vpn_hexdump(pkt, len));
 
     switch (type) {
     case SSTP_MSG_CALL_CONNECT_ACK: {
@@ -372,7 +372,7 @@ static void sstp_handle_control(vpn_sstp *s, const uint8_t *pkt, size_t len)
                 s->need_crypto_binding = true;
                 if (alen >= 4 + 4 + 32)
                     s->cb_hash_mask = pkt[pos + 7];
-                VPN_INFO("SSTP: 服务器请求 Crypto-Binding（MS-CHAPv2 密钥校验，哈希位图=0x%02x）",
+                VPN_INFO("SSTP: server requests Crypto-Binding (MS-CHAPv2 key check, hash mask=0x%02x)",
                          s->cb_hash_mask);
             }
             pos += alen;
@@ -387,7 +387,7 @@ static void sstp_handle_control(vpn_sstp *s, const uint8_t *pkt, size_t len)
         if (!s->need_crypto_binding || s->has_mppe)
             sstp_send_connected(s);
         else
-            VPN_DEBUG("SSTP: 等待 PPP 认证完成后再发送 CALL_CONNECTED");
+            VPN_DEBUG("SSTP: waiting for PPP authentication before CALL_CONNECTED");
 
         if (s->cbs.on_connected)
             s->cbs.on_connected(s->cbs.ctx);
@@ -405,7 +405,7 @@ static void sstp_handle_control(vpn_sstp *s, const uint8_t *pkt, size_t len)
             pos += alen;
         }
         snprintf(s->reason, sizeof(s->reason),
-                 "服务器拒绝 SSTP 连接 (status=0x%08x)", status);
+                 "server rejected the SSTP connection (status=0x%08x)", status);
         VPN_ERROR("%s", s->reason);
         if (s->cbs.on_closed)
             s->cbs.on_closed(s->cbs.ctx, s->reason);
@@ -418,20 +418,20 @@ static void sstp_handle_control(vpn_sstp *s, const uint8_t *pkt, size_t len)
         s->last_rx_ms = vpn_now_ms();
         break;
     case SSTP_MSG_CALL_DISCONNECT:
-        snprintf(s->reason, sizeof(s->reason), "服务器主动断开 SSTP 连接");
+        snprintf(s->reason, sizeof(s->reason), "server closed the SSTP connection");
         sstp_send_control(s, SSTP_MSG_CALL_DISCONNECT_ACK, NULL, 0);
         s->open = false;
         if (s->cbs.on_closed)
             s->cbs.on_closed(s->cbs.ctx, s->reason);
         break;
     case SSTP_MSG_CALL_ABORT:
-        snprintf(s->reason, sizeof(s->reason), "服务器中止 SSTP 连接 (CALL_ABORT)");
+        snprintf(s->reason, sizeof(s->reason), "server aborted the SSTP connection (CALL_ABORT)");
         s->open = false;
         if (s->cbs.on_closed)
             s->cbs.on_closed(s->cbs.ctx, s->reason);
         break;
     default:
-        VPN_DEBUG("SSTP: 未处理控制报文 type=%u", type);
+        VPN_DEBUG("SSTP: unhandled control packet type=%u", type);
         break;
     }
 }
@@ -454,13 +454,13 @@ static int sstp_parse_buffer(vpn_sstp *s)
         uint16_t total = vpn_be16(s->rx + 2);
 
         if (version != SSTP_VERSION) {
-            VPN_WARN("SSTP: 版本字节异常 0x%02x，尝试重同步", version);
+            VPN_WARN("SSTP: unexpected version byte 0x%02x, attempting resync", version);
             memmove(s->rx, s->rx + 1, s->rxlen - 1);
             s->rxlen--;
             continue;
         }
         if (total < 4) {
-            VPN_ERROR("SSTP: 报文长度非法 %u", total);
+            VPN_ERROR("SSTP: invalid packet length %u", total);
             return VPN_ERR_PROTO;
         }
         if (s->rxlen < total)
@@ -478,7 +478,7 @@ static int sstp_parse_buffer(vpn_sstp *s)
                 pp += 2;
                 plen -= 2;
             }
-            VPN_DEBUG("SSTP: PPP 负载 %zu 字节", plen);
+            VPN_DEBUG("SSTP: PPP payload %zu bytes", plen);
             if (plen > 0 && s->cbs.on_ppp)
                 s->cbs.on_ppp(s->cbs.ctx, pp, plen);
         }
@@ -502,7 +502,7 @@ int vpn_sstp_run_once(vpn_sstp *s, int timeout_ms)
 
     rc = vpn_tls_read(s->tls, s->rx + s->rxlen, sizeof(s->rx) - s->rxlen, timeout_ms);
     if (rc == 0) {
-        snprintf(s->reason, sizeof(s->reason), "服务器关闭了 TLS 连接");
+        snprintf(s->reason, sizeof(s->reason), "server closed the TLS connection");
         s->open = false;
         if (s->cbs.on_closed)
             s->cbs.on_closed(s->cbs.ctx, s->reason);
@@ -513,7 +513,7 @@ int vpn_sstp_run_once(vpn_sstp *s, int timeout_ms)
 
     s->rxlen += (size_t)rc;
     s->last_rx_ms = vpn_now_ms();
-    VPN_DEBUG("SSTP: 收到 %d 字节（缓冲 %zu）", rc, s->rxlen);
+    VPN_DEBUG("SSTP: received %d bytes (buffer %zu)", rc, s->rxlen);
     return sstp_parse_buffer(s);
 }
 
@@ -583,10 +583,10 @@ static int sstp_http_upgrade(vpn_sstp *s)
 
     rc = vpn_tls_write(s->tls, req, (size_t)len, s->p.io_timeout_ms);
     if (rc < 0) {
-        snprintf(s->reason, sizeof(s->reason), "发送 SSTP_DUPLEX_POST 失败");
+        snprintf(s->reason, sizeof(s->reason), "failed to send SSTP_DUPLEX_POST");
         return rc;
     }
-    VPN_DEBUG("SSTP: 已发送 SSTP_DUPLEX_POST（HTTP 封装层）");
+    VPN_DEBUG("SSTP: SSTP_DUPLEX_POST sent (HTTP encapsulation layer)");
 
     for (;;) {
         if (got + 1 >= sizeof(resp))
@@ -594,8 +594,8 @@ static int sstp_http_upgrade(vpn_sstp *s)
         rc = vpn_tls_read(s->tls, resp + got, sizeof(resp) - 1 - got, s->p.io_timeout_ms);
         if (rc <= 0) {
             snprintf(s->reason, sizeof(s->reason), "%s",
-                     rc == 0 ? "服务器在 SSTP HTTP 阶段关闭了连接"
-                             : "读取 SSTP HTTP 响应失败");
+                     rc == 0 ? "server closed the connection during the SSTP HTTP phase"
+                             : "failed to read the SSTP HTTP response");
             return rc == 0 ? VPN_ERR_CLOSED : rc;
         }
         got += (size_t)rc;
@@ -609,8 +609,8 @@ static int sstp_http_upgrade(vpn_sstp *s)
     first[i] = '\0';
 
     if (!strstr(resp, " 200")) {
-        snprintf(s->reason, sizeof(s->reason), "SSTP HTTP 升级被拒绝（%s）",
-                 first[0] ? first : "无响应");
+        snprintf(s->reason, sizeof(s->reason), "SSTP HTTP upgrade rejected (%s)",
+                 first[0] ? first : "no response");
         return VPN_ERR_PROTO;
     }
 
@@ -629,7 +629,7 @@ static int sstp_http_upgrade(vpn_sstp *s)
         }
     }
 
-    VPN_INFO("SSTP: HTTP 隧道已建立（%s）", first);
+    VPN_INFO("SSTP: HTTP tunnel established (%s)", first);
     return VPN_OK;
 }
 
@@ -644,7 +644,7 @@ int vpn_sstp_open(vpn_sstp *s)
     if (!s)
         return VPN_ERR_INVALID;
 
-    VPN_INFO("SSTP: 连接 %s:%u (证书策略=%s)", s->p.host, s->p.port,
+    VPN_INFO("SSTP: connecting %s:%u (cert policy=%s)", s->p.host, s->p.port,
              vpn_cert_mode_name(s->p.cert_mode));
 
     rc = vpn_net_tcp_connect(s->p.host, s->p.port, s->p.connect_timeout_ms, &s->sock);
@@ -662,7 +662,7 @@ int vpn_sstp_open(vpn_sstp *s)
 
     s->tls = vpn_tls_new(&tp);
     if (!s->tls) {
-        snprintf(s->reason, sizeof(s->reason), "TLS 初始化失败");
+        snprintf(s->reason, sizeof(s->reason), "TLS initialization failed");
         return VPN_ERR_TLS;
     }
 
@@ -692,10 +692,10 @@ int vpn_sstp_open(vpn_sstp *s)
     rc = sstp_send_control(s, SSTP_MSG_CALL_CONNECT_REQUEST, attrs, (size_t)n);
     if (rc != VPN_OK)
         return rc;
-    VPN_INFO("SSTP: CALL_CONNECT_REQUEST 已发出（Encap=PPP, %d 字节）",
+    VPN_INFO("SSTP: CALL_CONNECT_REQUEST sent (Encap=PPP, %d bytes)",
              8 + n);
 
-    VPN_INFO("SSTP: 已发送 CALL_CONNECT_REQUEST，等待服务器 ACK（最多 %d 秒）",
+    VPN_INFO("SSTP: CALL_CONNECT_REQUEST sent, waiting for server ACK (up to %d s)",
              s->p.connect_timeout_ms / 1000 > 0 ? s->p.connect_timeout_ms / 1000 : 1);
 
     /* 等待 CALL_CONNECT_ACK */
@@ -703,8 +703,8 @@ int vpn_sstp_open(vpn_sstp *s)
     while (!s->open) {
         if (vpn_now_ms() > deadline) {
             snprintf(s->reason, sizeof(s->reason),
-                     "等待 CALL_CONNECT_ACK 超时（服务器已接受 HTTP 隧道但未回 ACK，"
-                     "请检查 RouterOS 的 sstp-server 认证配置与 /log）");
+                     "timed out waiting for CALL_CONNECT_ACK (the server accepted the HTTP tunnel but never replied; "
+                     "check the RouterOS sstp-server authentication settings and /log)");
             VPN_ERROR("SSTP: %s", s->reason);
             return VPN_ERR_TIMEOUT;
         }
@@ -715,7 +715,7 @@ int vpn_sstp_open(vpn_sstp *s)
             return rc;
     }
 
-    VPN_INFO("SSTP: 控制通道已建立（%s）", s->tls_summary);
+    VPN_INFO("SSTP: control channel established (%s)", s->tls_summary);
     s->last_rx_ms = vpn_now_ms();
     return VPN_OK;
 }
@@ -763,7 +763,7 @@ void vpn_sstp_close(vpn_sstp *s, const char *reason)
 
     if (s->tls && s->open) {
         sstp_send_control(s, SSTP_MSG_CALL_DISCONNECT, NULL, 0);
-        VPN_INFO("SSTP: 已发送 CALL_DISCONNECT (%s)", reason ? reason : "-");
+        VPN_INFO("SSTP: CALL_DISCONNECT sent (%s)", reason ? reason : "-");
     }
     s->open = false;
     if (s->tls) {

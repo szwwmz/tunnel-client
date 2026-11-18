@@ -217,13 +217,13 @@ static int l2tp_xmit(vpn_l2tp *l, const uint8_t *buf, size_t len)
 {
     if (l->ipsec) {
         if (vpn_ipsec_send(l->ipsec, buf, len) < 0) {
-            VPN_ERROR("L2TP: ESP 发送失败");
+            VPN_ERROR("L2TP: failed to send ESP packet");
             return VPN_ERR_IO;
         }
         return VPN_OK;
     }
     if (vpn_net_write_all(l->sock, buf, len, l->p.io_timeout_ms) < 0) {
-        VPN_ERROR("L2TP: 报文发送失败");
+        VPN_ERROR("L2TP: failed to send packet");
         return VPN_ERR_IO;
     }
     return VPN_OK;
@@ -252,7 +252,7 @@ static int l2tp_send_ctrl(vpn_l2tp *l, uint16_t type, const uint8_t *avps, size_
 
     l->ns++;
     if (l2tp_xmit(l, pkt, (size_t)len) != VPN_OK) {
-        VPN_ERROR("L2TP: 控制消息发送失败");
+        VPN_ERROR("L2TP: failed to send control message");
         return VPN_ERR_IO;
     }
     VPN_DEBUG("L2TP -> type=%u len=%d ns=%u nr=%u", type, len, (unsigned)(l->ns - 1), l->nr);
@@ -380,7 +380,7 @@ static void l2tp_handle_control(vpn_l2tp *l, const uint8_t *pkt, size_t len)
     uint16_t mtype = 0;
 
     if (len < L2TP_HEADER_LEN) {
-        VPN_WARN("L2TP: 控制报文过短");
+        VPN_WARN("L2TP: control packet too short");
         return;
     }
 
@@ -402,7 +402,7 @@ static void l2tp_handle_control(vpn_l2tp *l, const uint8_t *pkt, size_t len)
      * 也用源端口 1701），服务器发给它的 CDN/StopCCN 会串到本 socket，
      * 曾导致把别人的 CDN 当成自己断开。 */
     if (l->srv_tunnel_id && tunnel_id && tunnel_id != l->srv_tunnel_id) {
-        VPN_DEBUG("L2TP: 忽略其它隧道的消息 tunnel=%u（本隧道=%u）",
+        VPN_DEBUG("L2TP: ignoring message for tunnel=%u (this tunnel=%u)",
                   tunnel_id, l->srv_tunnel_id);
         return;
     }
@@ -421,7 +421,7 @@ static void l2tp_handle_control(vpn_l2tp *l, const uint8_t *pkt, size_t len)
         l->nr = (uint16_t)(ns + 1);
         l->ns = nr; /* 对齐对方期望 */
 
-        VPN_INFO("L2TP: 收到 SCCRP（服务器 tunnel id=%u）", l->peer_tunnel_id);
+        VPN_INFO("L2TP: received SCCRP (server tunnel id=%u)", l->peer_tunnel_id);
 
         l2tp_send_scccn(l);
 
@@ -439,7 +439,7 @@ static void l2tp_handle_control(vpn_l2tp *l, const uint8_t *pkt, size_t len)
             l->peer_session_id = assigned;
         l->have_peer_session = true;
 
-        VPN_INFO("L2TP: 收到 ICRP（服务器 session id=%u），发送 ICCN",
+        VPN_INFO("L2TP: received ICRP (server session id=%u), sending ICCN",
                  l->peer_session_id);
 
         l2tp_send_iccn(l);
@@ -449,13 +449,13 @@ static void l2tp_handle_control(vpn_l2tp *l, const uint8_t *pkt, size_t len)
         break;
     }
     case L2TP_MSG_STOPCCN:
-        snprintf(l->reason, sizeof(l->reason), "服务器停止控制连接 (StopCCN)");
+        snprintf(l->reason, sizeof(l->reason), "server stopped the control connection (StopCCN)");
         l->open = false;
         if (l->cbs.on_closed)
             l->cbs.on_closed(l->cbs.ctx, l->reason);
         break;
     case L2TP_MSG_CDN:
-        snprintf(l->reason, sizeof(l->reason), "服务器断开呼叫 (CDN)");
+        snprintf(l->reason, sizeof(l->reason), "server disconnected the call (CDN)");
         l->open = false;
         if (l->cbs.on_closed)
             l->cbs.on_closed(l->cbs.ctx, l->reason);
@@ -466,7 +466,7 @@ static void l2tp_handle_control(vpn_l2tp *l, const uint8_t *pkt, size_t len)
         l2tp_send_ctrl(l, 0, NULL, 0);
         break;
     default:
-        VPN_DEBUG("L2TP: 未处理控制消息 type=%u", mtype);
+        VPN_DEBUG("L2TP: unhandled control message type=%u", mtype);
         break;
     }
 }
@@ -486,7 +486,7 @@ static void l2tp_handle_data(vpn_l2tp *l, const uint8_t *pkt, size_t len)
         hdr += 4;
 
     if (len <= hdr || hdr > 16) {
-        VPN_TRACE("L2TP: 数据报文头异常");
+        VPN_TRACE("L2TP: malformed data packet header");
         return;
     }
 
@@ -592,7 +592,7 @@ int vpn_l2tp_open(vpn_l2tp *l)
     if (!l)
         return VPN_ERR_INVALID;
 
-    VPN_INFO("L2TP: 连接 %s:%u", l->p.host, l->p.port);
+    VPN_INFO("L2TP: connecting %s:%u", l->p.host, l->p.port);
 
     /* IPsec：psk 非空才真正建 SA；use_ipsec 只是"允许"开关 */
     if (l->p.use_ipsec && l->p.psk[0]) {
@@ -607,22 +607,22 @@ int vpn_l2tp_open(vpn_l2tp *l)
         ikp.force_natt = true; /* 用户态必须 UDP 封装 */
 
         ikeerr[0] = 0;
-        VPN_INFO("IPsec: 与 %s 协商 IKEv1（PSK）", l->p.host);
+        VPN_INFO("IPsec: negotiating IKEv1 with %s (PSK)", l->p.host);
         l->ipsec = vpn_ipsec_new(&ikp, ikeerr, sizeof(ikeerr));
         if (!l->ipsec) {
-            snprintf(l->reason, sizeof(l->reason), "IPsec 初始化失败: %s", ikeerr);
+            snprintf(l->reason, sizeof(l->reason), "IPsec init failed: %s", ikeerr);
             VPN_ERROR("L2TP: %s", l->reason);
             return VPN_ERR_IO;
         }
         rc = vpn_ipsec_connect(l->ipsec, ikeerr, sizeof(ikeerr));
         if (rc != VPN_OK) {
-            snprintf(l->reason, sizeof(l->reason), "IPsec 协商失败: %.40s", ikeerr);
+            snprintf(l->reason, sizeof(l->reason), "IPsec negotiation failed: %.40s", ikeerr);
             VPN_ERROR("L2TP: %s", l->reason);
             vpn_ipsec_free(l->ipsec);
             l->ipsec = NULL;
             return rc;
         }
-        VPN_INFO("IPsec: SA 就绪（%s）", vpn_ipsec_cipher(l->ipsec));
+        VPN_INFO("IPsec: SA ready (%s)", vpn_ipsec_cipher(l->ipsec));
     }
 
     /* 必须用 1701 作源端口：RouterOS 的 L2TP 数据通道按源端口识别对端 */
@@ -636,11 +636,11 @@ int vpn_l2tp_open(vpn_l2tp *l)
         return VPN_ERR_INVALID;
 
     if (l2tp_xmit(l, pkt, (size_t)len) != VPN_OK) {
-        VPN_ERROR("L2TP: 发送 SCCRQ 失败");
+        VPN_ERROR("L2TP: failed to send SCCRQ");
         return VPN_ERR_IO;
     }
     l->ns = 1;
-    VPN_INFO("L2TP: 已发送 SCCRQ（本地 tunnel id=%u）", l->our_tunnel_id);
+    VPN_INFO("L2TP: SCCRQ sent (local tunnel id=%u)", l->our_tunnel_id);
 
     deadline = vpn_now_ms() + l->p.connect_timeout_ms;
     retx_at = vpn_now_ms() + L2TP_SCCRQ_RTO_MS;
@@ -649,7 +649,7 @@ int vpn_l2tp_open(vpn_l2tp *l)
             /* 把重传次数写进原因：0 次说明对端连个回包都没有（大概率被
              * 服务端 use-ipsec=yes 丢弃或 1701 没放行），多次说明链路丢包 */
             snprintf(l->reason, sizeof(l->reason),
-                     "等待 SCCRP 超时（已重传 %d 次；检查服务端 use-ipsec=no 且放行 UDP/1701）",
+                     "timed out waiting for SCCRP (%d retransmits; check that the server uses use-ipsec=no and that UDP/1701 is allowed)",
                      retx);
             VPN_ERROR("L2TP: %s", l->reason);
             return VPN_ERR_TIMEOUT;
@@ -660,7 +660,7 @@ int vpn_l2tp_open(vpn_l2tp *l)
         if (l->nr == 0 && retx < L2TP_SCCRQ_MAX_RETX && vpn_now_ms() >= retx_at) {
             if (l2tp_xmit(l, pkt, (size_t)len) == VPN_OK) {
                 retx++;
-                VPN_DEBUG("L2TP: 重传 SCCRQ（第 %d 次）", retx);
+                VPN_DEBUG("L2TP: retransmitting SCCRQ (attempt %d)", retx);
             }
             retx_at = vpn_now_ms() + L2TP_SCCRQ_RTO_MS;
         }
@@ -673,7 +673,7 @@ int vpn_l2tp_open(vpn_l2tp *l)
     deadline = vpn_now_ms() + l->p.connect_timeout_ms;
     while (!l->open) {
         if (vpn_now_ms() > deadline) {
-            snprintf(l->reason, sizeof(l->reason), "等待 ICRP 超时");
+            snprintf(l->reason, sizeof(l->reason), "timed out waiting for ICRP");
             VPN_ERROR("L2TP: %s", l->reason);
             return VPN_ERR_TIMEOUT;
         }
@@ -682,7 +682,7 @@ int vpn_l2tp_open(vpn_l2tp *l)
             return rc;
     }
 
-    VPN_INFO("L2TP: 会话已建立 (peer tunnel=%u session=%u)", l->peer_tunnel_id,
+    VPN_INFO("L2TP: session established (peer tunnel=%u session=%u)", l->peer_tunnel_id,
              l->peer_session_id);
     return VPN_OK;
 }
@@ -743,7 +743,7 @@ void vpn_l2tp_close(vpn_l2tp *l, const char *reason)
 
         avp_put_u16(avps, sizeof(avps), &pos, AVP_MESSAGE_TYPE, L2TP_MSG_STOPCCN);
         l2tp_send_ctrl(l, L2TP_MSG_STOPCCN, avps, pos);
-        VPN_INFO("L2TP: 已发送 StopCCN (%s)", reason ? reason : "-");
+        VPN_INFO("L2TP: StopCCN sent (%s)", reason ? reason : "-");
     }
     l->open = false;
     vpn_net_close(&l->sock);

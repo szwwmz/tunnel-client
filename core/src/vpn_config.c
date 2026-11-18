@@ -92,31 +92,31 @@ bool vpn_config_port_needs_hint(const vpn_config *cfg)
 int vpn_config_validate(const vpn_config *cfg, char *err, size_t errlen)
 {
     if (!cfg) {
-        if (err) snprintf(err, errlen, "配置为空");
+        if (err) snprintf(err, errlen, "configuration is empty");
         return VPN_ERR_CONFIG;
     }
     if (cfg->host[0] == '\0') {
-        if (err) snprintf(err, errlen, "服务器地址不能为空");
+        if (err) snprintf(err, errlen, "server address must not be empty");
         return VPN_ERR_CONFIG;
     }
     if (cfg->username[0] == '\0') {
-        if (err) snprintf(err, errlen, "用户名不能为空");
+        if (err) snprintf(err, errlen, "user name must not be empty");
         return VPN_ERR_CONFIG;
     }
     if (cfg->auth == VPN_AUTH_PAP && cfg->proto != VPN_PROTO_SSTP && cfg->proto != VPN_PROTO_L2TP) {
-        if (err) snprintf(err, errlen, "PAP 不适用于 %s", vpn_proto_name(cfg->proto));
+        if (err) snprintf(err, errlen, "PAP is not available for %s", vpn_proto_name(cfg->proto));
         return VPN_ERR_CONFIG;
     }
     if (cfg->proto == VPN_PROTO_PPTP && cfg->password[0] == '\0') {
-        if (err) snprintf(err, errlen, "PPTP 需要密码（MS-CHAPv2/MPPE）");
+        if (err) snprintf(err, errlen, "PPTP requires a password (MS-CHAPv2/MPPE)");
         return VPN_ERR_CONFIG;
     }
     if (cfg->mtu && (cfg->mtu < 576 || cfg->mtu > 1500)) {
-        if (err) snprintf(err, errlen, "MTU 需在 576~1500 之间");
+        if (err) snprintf(err, errlen, "MTU must be between 576 and 1500");
         return VPN_ERR_CONFIG;
     }
     if (cfg->route_count > VPN_MAX_ROUTES) {
-        if (err) snprintf(err, errlen, "分流网段数量超限");
+        if (err) snprintf(err, errlen, "too many split-tunnel routes");
         return VPN_ERR_CONFIG;
     }
     return VPN_OK;

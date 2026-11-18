@@ -41,7 +41,7 @@ import android.widget.Toast
 class MainActivity : Activity(), UiBus.Listener {
 
     companion object {
-        const val VERSION = "1.3.15"
+        const val VERSION = "1.3.16"
 
         private const val PREFS = "vpn-gui"
         private const val REQ_VPN = 100
@@ -91,7 +91,7 @@ class MainActivity : Activity(), UiBus.Listener {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == REQ_VPN) {
-            if (resultCode == RESULT_OK) doConnect() else toast("未授权 VPN，无法建立隧道")
+            if (resultCode == RESULT_OK) doConnect() else toast(L.t("未授权 VPN，无法建立隧道","VPN permission denied, cannot create the tunnel"))
         }
     }
 
@@ -479,6 +479,7 @@ class MainActivity : Activity(), UiBus.Listener {
     private fun showAbout() {
         val zhNotes =
             "v$VERSION\n" +
+            "  · 连接日志、CLI 帮助与错误提示统一改为英文（界面文案仍中英双语）\n" +
             "  · 修复 CALL_CONNECTED 原地构造时 memcpy 源目标重叠（未定义行为，\n" +
             "    gcc -Wrestrict 报警）；改为 memmove 并补回归用例\n" +
             "  · 修复 L2TP/IPsec 域名拷贝被静默截断（IKE host 64 → 256 字节）\n" +
@@ -528,6 +529,8 @@ class MainActivity : Activity(), UiBus.Listener {
 
         val enNotes =
             "v$VERSION\n" +
+            "  · Connection logs, CLI help and error messages are now English-only" +
+            "    (the UI stays bilingual)\n" +
             "  · Fixed UB: in-place memcpy overlap when building CALL_CONNECTED" +
             "    (gcc -Wrestrict); switched to memmove plus a regression test\n" +
             "  · Fixed silent truncation of long L2TP/IPsec host names" +

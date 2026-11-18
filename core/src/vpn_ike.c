@@ -318,7 +318,7 @@ done:
     BN_free(pub);
     BN_CTX_free(ctx);
     if (rc != VPN_OK && err)
-        snprintf(err, errlen, "DH 初始化失败");
+        snprintf(err, errlen, "DH initialization failed");
     return rc;
 }
 
@@ -343,7 +343,7 @@ done:
     BN_free(sh);
     BN_CTX_free(ctx);
     if (rc != VPN_OK && err)
-        snprintf(err, errlen, "DH 交换计算失败");
+        snprintf(err, errlen, "DH exchange computation failed");
     return rc;
 }
 
@@ -631,7 +631,7 @@ static int ike_recv_msg(vpn_ipsec *ip, uint8_t *resp, size_t cap, uint32_t mid,
                     return VPN_ERR_NOMEM;
                 memcpy(resp, tmp + 4, (size_t)n - 4);
                 ip->ike4500 = true;
-                VPN_DEBUG("IKE: 对端已浮动到 UDP/4500");
+                VPN_DEBUG("IKE: peer floated to UDP/4500");
                 return n - 4;
             }
         }
@@ -716,7 +716,7 @@ static int mm_run(vpn_ipsec *ip, char *err, size_t errlen)
     /* 2. SA（对端提议）：只含 SA 与若干 VID，不含 KE/NONCE */
     rlen = ike_recv_msg(ip, resp, sizeof(resp), 0, tmo);
     if (rlen < 0) {
-        snprintf(err, errlen, "IKE 无响应：服务器未启用 IPsec 或 UDP/500 不通");
+        snprintf(err, errlen, "no IKE response: IPsec is disabled on the server or UDP/500 is blocked");
         return rlen;
     }
     memcpy(ip->cky_r, resp + 8, 8);
@@ -726,17 +726,17 @@ static int mm_run(vpn_ipsec *ip, char *err, size_t errlen)
         int kbits = 0, grp = 0;
 
         if (!psa) {
-            snprintf(err, errlen, "对端拒绝了提议（AES-CBC/SHA1/MODP1024/PSK）");
+            snprintf(err, errlen, "peer rejected the proposal (AES-CBC/SHA1/MODP1024/PSK)");
             return VPN_ERR_PROTO;
         }
         sa_scan(psa, &kbits, &grp);
         if (kbits == 128 || kbits == 192 || kbits == 256)
             ip->ike_enc_len = kbits / 8;
         if (grp && grp != GROUP_MODP1024) {
-            snprintf(err, errlen, "对端选择了非 MODP1024 的 DH 组（%d）", grp);
+            snprintf(err, errlen, "peer selected a DH group other than MODP1024 (%d)", grp);
             return VPN_ERR_UNSUPPORTED;
         }
-        VPN_DEBUG("IKE: 对端选中 AES-%d / SHA1 / MODP1024", ip->ike_enc_len * 8);
+        VPN_DEBUG("IKE: peer selected AES-%d / SHA1 / MODP1024", ip->ike_enc_len * 8);
     }
 
     /* 3. KE + NONCE + NAT-D ×2 + VID */
@@ -768,19 +768,19 @@ static int mm_run(vpn_ipsec *ip, char *err, size_t errlen)
      *    RFC 2409 §5.1 是 6 条报文，ID/HASH 在加密的第 5、6 包。 */
     rlen = ike_recv_msg(ip, resp, sizeof(resp), 0, tmo);
     if (rlen < 0) {
-        snprintf(err, errlen, "IKE 主模式第 4 包超时");
+        snprintf(err, errlen, "IKE main mode: timed out waiting for packet 4");
         return rlen;
     }
     n = ike_parse(resp, (size_t)rlen, pl, 16);
     ke = pl_find(pl, n, PL_KE);
     nonce = pl_find(pl, n, PL_NONCE);
     if (!ke || !nonce || ke->len != 128) {
-        snprintf(err, errlen, "IKE 第 4 包缺少 KE/NONCE（DH 组不符）");
+        snprintf(err, errlen, "IKE packet 4 lacks KE/NONCE (DH group mismatch)");
         return VPN_ERR_PROTO;
     }
     memcpy(ip->ke_r, ke->body, 128);
     if (nonce->len < 8 || nonce->len > sizeof(ip->nonce_r)) {
-        snprintf(err, errlen, "IKE 第 4 包 nonce 长度异常（%u）", (unsigned)nonce->len);
+        snprintf(err, errlen, "IKE packet 4 has a bad nonce length (%u)", (unsigned)nonce->len);
         return VPN_ERR_PROTO;
     }
     memcpy(ip->nonce_r, nonce->body, nonce->len);
@@ -808,13 +808,13 @@ static int mm_run(vpn_ipsec *ip, char *err, size_t errlen)
     /* 6. IDir + HASH_R（加密，IV 继承第 5 包最后密文块） */
     rlen = ike_recv_msg(ip, resp, sizeof(resp), 0, tmo);
     if (rlen < 0) {
-        snprintf(err, errlen, "IKE 主模式第 6 包超时（PSK 不匹配被对端丢弃）");
+        snprintf(err, errlen, "IKE main mode: timed out waiting for packet 6 (dropped by the peer, PSK mismatch?)");
         return rlen;
     }
     ike_trace("mm6_raw", resp, (size_t)rlen);
     rlen = ike_decrypt(ip, resp, (size_t)rlen);
     if (rlen < 0) {
-        snprintf(err, errlen, "IKE 第 6 包解密失败（rc=%d）", rlen);
+        snprintf(err, errlen, "IKE packet 6 decryption failed (rc=%d)", rlen);
         return VPN_ERR_AUTH;
     }
     ike_trace("mm6_plain", resp, (size_t)rlen);
@@ -822,11 +822,11 @@ static int mm_run(vpn_ipsec *ip, char *err, size_t errlen)
     pid = pl_find(pl, n, PL_ID);
     phash = pl_find(pl, n, PL_HASH);
     if (!pid || !phash || phash->len != 20) {
-        snprintf(err, errlen, "IKE 第 6 包缺少 ID/HASH");
+        snprintf(err, errlen, "IKE packet 6 lacks ID/HASH");
         return VPN_ERR_PROTO;
     }
     if (pid->len < 8 || pid->len > sizeof(ip->id_r)) {
-        snprintf(err, errlen, "IKE 对端 ID 长度异常（%u）", (unsigned)pid->len);
+        snprintf(err, errlen, "IKE peer ID has a bad length (%u)", (unsigned)pid->len);
         return VPN_ERR_PROTO;
     }
     /* 逐字节保留对端 ID 原文：端口/协议字段各实现不同，重建会算出错哈希 */
@@ -837,16 +837,16 @@ static int mm_run(vpn_ipsec *ip, char *err, size_t errlen)
 
     hash_id(ip, false, ip->id_r, ip->id_r_len, hash_r);
     if (memcmp(hash_r, phash->body, 20) != 0) {
-        snprintf(err, errlen, "HASH_R 校验失败（预共享密钥不匹配）");
+        snprintf(err, errlen, "HASH_R verification failed (PSK mismatch)");
         return VPN_ERR_AUTH;
     }
 
     /* RFC 3947：阶段 1 认证完成后才浮动端口，Quick Mode 起走 UDP/4500 */
     if (ip->natt) {
         ip->ike4500 = true;
-        VPN_INFO("IPsec: 阶段 1 完成（HASH_R 校验通过），IKE 浮动至 UDP/4500");
+        VPN_INFO("IPsec: phase 1 done (HASH_R verified), IKE floated to UDP/4500");
     } else {
-        VPN_INFO("IPsec: 阶段 1 完成（HASH_R 校验通过）");
+        VPN_INFO("IPsec: phase 1 done (HASH_R verified)");
     }
     return VPN_OK;
 }
@@ -961,7 +961,7 @@ static int qm_run(vpn_ipsec *ip, char *err, size_t errlen)
     /* ---- QM 2 ---- */
     rlen = ike_recv_msg(ip, resp, sizeof(resp), ip->qm_mid, tmo);
     if (rlen < 0) {
-        snprintf(err, errlen, "Quick Mode 响应超时（对端拒绝 ESP 提议）");
+        snprintf(err, errlen, "Quick Mode response timed out (peer rejected the ESP proposal)");
         return rlen;
     }
     rlen = ike_decrypt(ip, resp, (size_t)rlen);
@@ -973,7 +973,7 @@ static int qm_run(vpn_ipsec *ip, char *err, size_t errlen)
     pnonce = pl_find(pl, n, PL_NONCE);
     phash = pl_find(pl, n, PL_HASH);
     if (!psa || !pnonce || !phash || psa->len < 20 || pnonce->len < 20) {
-        snprintf(err, errlen, "Quick Mode 响应格式异常");
+        snprintf(err, errlen, "malformed Quick Mode response");
         return VPN_ERR_PROTO;
     }
     ip->spi_out = rd32(psa->body + 16);
@@ -990,7 +990,7 @@ static int qm_run(vpn_ipsec *ip, char *err, size_t errlen)
             ip->esp_enc_len = ip->esp_dec_len = kb / 8;
         else
             ip->esp_enc_len = ip->esp_dec_len = 32;  /* 默认 AES-256 */
-        VPN_DEBUG("ESP: 加密密钥长度 %d 字节（协商 %d 位）", ip->esp_enc_len, kb);
+        VPN_DEBUG("ESP: encryption key length %d bytes (negotiated %d bits)", ip->esp_enc_len, kb);
     }
 
     if (pnonce->len < 8 || pnonce->len > sizeof(ip->qm_nonce_r))
@@ -1020,7 +1020,7 @@ static int qm_run(vpn_ipsec *ip, char *err, size_t errlen)
         vpn_hmac_sha1(ip->skeyid_a, 20, tmp, o, h2);
         ike_trace("qm2_in", tmp, o);
         if (memcmp(h2, phash->body, 20) != 0) {
-            snprintf(err, errlen, "Quick Mode HASH 校验失败");
+            snprintf(err, errlen, "Quick Mode HASH verification failed");
             return VPN_ERR_AUTH;
         }
     }
@@ -1073,7 +1073,7 @@ static int qm_run(vpn_ipsec *ip, char *err, size_t errlen)
                 ip->esp_raw = true;
         } else if (strcmp(mode, "raw") == 0) {
             if (vpn_net_raw_esp_connect(ip->p.host, &ip->rsk) != VPN_OK) {
-                snprintf(err, errlen, "无法创建原始 ESP socket（需要 root 权限）");
+                snprintf(err, errlen, "cannot create a raw ESP socket (needs root)");
                 return VPN_ERR_IO;
             }
             ip->esp_raw = true;
@@ -1081,8 +1081,8 @@ static int qm_run(vpn_ipsec *ip, char *err, size_t errlen)
     } else {
         ip->esp_raw = true;
     }
-    VPN_INFO("IPsec: ESP transport SA 建立（in=0x%08x out=0x%08x，AES-256/HMAC-SHA1，%s）",
-             ip->spi_in, ip->spi_out, ip->esp_raw ? "IP 协议 50" : "UDP/4500 封装");
+    VPN_INFO("IPsec: ESP transport SA established (in=0x%08x out=0x%08x, AES-256/HMAC-SHA1, %s)",
+             ip->spi_in, ip->spi_out, ip->esp_raw ? "IP protocol 50" : "UDP/4500 encapsulation");
     return VPN_OK;
 }
 
@@ -1133,10 +1133,10 @@ static int esp_send(vpn_ipsec *ip, const uint8_t *data, size_t len)
     if (ip->esp_raw) {
         /* IP 协议 50：内核补 IP 头，不需要 4 字节 non-ESP marker */
         if (vpn_net_write_all(ip->rsk, pkt, esplen, 2000) < 0) {
-            VPN_WARN("ESP: 原始 socket 发送失败（errno=%d）", vpn_net_error());
+            VPN_WARN("ESP: raw socket send failed (errno=%d)", vpn_net_error());
             return VPN_ERR_IO;
         }
-        VPN_DEBUG("ESP -> 协议 50 spi=0x%08x seq=%u len=%zu",
+        VPN_DEBUG("ESP -> protocol 50 spi=0x%08x seq=%u len=%zu",
                   ip->spi_out, ip->seq_out, esplen);
         return (int)len;
     }
@@ -1205,11 +1205,11 @@ static int esp_recv(vpn_ipsec *ip, uint8_t *buf, size_t cap, int timeout_ms)
         esp_keys_for(ip, ip->spi_out, ip->esp_dec_len, alt_key, alt_auth);
         vpn_hmac_sha1(alt_auth, 20, pkt + off, esplen - 12, altmac);
         if (memcmp(altmac, pkt + off + esplen - 12, 12) != 0) {
-            VPN_WARN("ESP: HMAC 校验失败，丢弃");
+            VPN_WARN("ESP: HMAC verification failed, packet dropped");
             return 0;
         }
         if (!ip->dec_use_spi_out)
-            VPN_WARN("ESP: 对端按 spi_out 派生入方向密钥（非标准约定）");
+            VPN_WARN("ESP: peer derives the inbound key from spi_out (non-standard convention)");
         ip->dec_use_spi_out = true;
         memcpy(ip->esp_dec_key, alt_key, sizeof(alt_key));
         memcpy(ip->esp_dec_auth, alt_auth, sizeof(alt_auth));
@@ -1254,13 +1254,13 @@ vpn_ipsec *vpn_ipsec_new(const vpn_ike_params *p, char *err, size_t errlen)
 
     if (!p || p->host[0] == 0 || p->psk[0] == 0) {
         if (err)
-            snprintf(err, errlen, "IPsec 参数不完整（需要服务器地址与 PSK）");
+            snprintf(err, errlen, "incomplete IPsec parameters (server address and PSK are required)");
         return NULL;
     }
     ip = (vpn_ipsec *)calloc(1, sizeof(*ip));
     if (!ip) {
         if (err)
-            snprintf(err, errlen, "内存不足");
+            snprintf(err, errlen, "out of memory");
         return NULL;
     }
     ip->p = *p;
@@ -1271,20 +1271,20 @@ vpn_ipsec *vpn_ipsec_new(const vpn_ike_params *p, char *err, size_t errlen)
     port = p->port ? p->port : 500;
     if (vpn_net_udp_connect(p->host, port, &ip->isk) != VPN_OK) {
         if (err)
-            snprintf(err, errlen, "无法连接 IKE 端口 %s:%u", p->host, port);
+            snprintf(err, errlen, "cannot reach the IKE port %s:%u", p->host, port);
         free(ip);
         return NULL;
     }
     if (vpn_net_local_addr(ip->isk, ip->local_ip) != VPN_OK) {
         if (err)
-            snprintf(err, errlen, "无法获取本地出口地址");
+            snprintf(err, errlen, "cannot determine the local egress address");
         vpn_net_close(&ip->isk);
         free(ip);
         return NULL;
     }
     if (vpn_net_peer_ipv4(ip->isk, ip->peer_ip) != VPN_OK) {
         if (err)
-            snprintf(err, errlen, "无法解析服务器地址");
+            snprintf(err, errlen, "cannot resolve the server address");
         vpn_net_close(&ip->isk);
         free(ip);
         return NULL;
@@ -1331,7 +1331,7 @@ int vpn_ipsec_connect(vpn_ipsec *ip, char *err, size_t errlen)
     natt = 4500;
     if (vpn_net_udp_connect(ip->p.host, natt, &ip->esk) != VPN_OK) {
         if (err)
-            snprintf(err, errlen, "无法连接 NAT-T 端口 4500");
+            snprintf(err, errlen, "cannot reach the NAT-T port 4500");
         return VPN_ERR_IO;
     }
 
@@ -1343,7 +1343,7 @@ int vpn_ipsec_connect(vpn_ipsec *ip, char *err, size_t errlen)
     rc = qm_run(ip, err, errlen);
     if (rc == VPN_ERR_TIMEOUT && ip->ike4500) {
         /* 对端没有按 RFC 3947 浮动端口：退回 500 再试一次 */
-        VPN_WARN("IPsec: Quick Mode 在 UDP/4500 无响应，回退 500 重试");
+        VPN_WARN("IPsec: no Quick Mode response on UDP/4500, retrying on port 500");
         ip->ike4500 = false;
         rc = qm_run(ip, err, errlen);
     }
@@ -1377,5 +1377,5 @@ int vpn_ipsec_fd(const vpn_ipsec *ip)
 
 const char *vpn_ipsec_cipher(const vpn_ipsec *ip)
 {
-    return (ip && ip->up) ? "AES-256-CBC/HMAC-SHA1-96 (ESP transport)" : "未建立";
+    return (ip && ip->up) ? "AES-256-CBC/HMAC-SHA1-96 (ESP transport)" : "not established";
 }

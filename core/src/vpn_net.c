@@ -69,7 +69,7 @@ int vpn_net_resolve(const char *host, uint16_t port, struct sockaddr_storage *ou
 
     rc = getaddrinfo(host, portstr, &hints, &res);
     if (rc != 0 || !res) {
-        VPN_ERROR("DNS 解析失败: %s (%s)", host,
+        VPN_ERROR("DNS resolution failed: %s (%s)", host,
 #ifdef _WIN32
                   "getaddrinfo"
 #else
@@ -126,7 +126,7 @@ static void protect_socket(vpn_sock_t s)
     if (!g_protect || s == VPN_INVALID_SOCK)
         return;
     if (g_protect(g_protect_ctx, (int)s) != 0)
-        VPN_WARN("socket protect 失败（fd=%d），隧道可能被自身路由中断", (int)s);
+        VPN_WARN("socket protect failed (fd=%d), our own route may break the tunnel", (int)s);
 }
 
 int vpn_net_tcp_connect(const char *host, uint16_t port, int timeout_ms, vpn_sock_t *sock)
@@ -161,7 +161,7 @@ int vpn_net_tcp_connect(const char *host, uint16_t port, int timeout_ms, vpn_soc
         in_progress = (errno == EINPROGRESS);
 #endif
         if (!in_progress) {
-            VPN_ERROR("TCP 连接 %s:%u 失败: errno=%d", host, port, vpn_net_error());
+            VPN_ERROR("TCP connect to %s:%u failed: errno=%d", host, port, vpn_net_error());
             vpn_net_close(&s);
             return VPN_ERR_IO;
         }
@@ -172,14 +172,14 @@ int vpn_net_tcp_connect(const char *host, uint16_t port, int timeout_ms, vpn_soc
             timeout_ms = 15000;
         rc = wait_writable(s, timeout_ms);
         if (rc != VPN_OK) {
-            VPN_WARN("TCP 连接 %s:%u 超时(%dms)", host, port, timeout_ms);
+            VPN_WARN("TCP connect to %s:%u timed out (%dms)", host, port, timeout_ms);
             vpn_net_close(&s);
             return rc;
         }
         int soerr = 0;
         socklen_t slen = sizeof(soerr);
         if (getsockopt(s, SOL_SOCKET, SO_ERROR, (char *)&soerr, &slen) != 0 || soerr != 0) {
-            VPN_ERROR("TCP 连接 %s:%u 被拒绝: errno=%d", host, port, soerr);
+            VPN_ERROR("TCP connect to %s:%u refused: errno=%d", host, port, soerr);
             vpn_net_close(&s);
             return VPN_ERR_IO;
         }
@@ -187,7 +187,7 @@ int vpn_net_tcp_connect(const char *host, uint16_t port, int timeout_ms, vpn_soc
 
     vpn_net_set_nonblock(s, false);
     vpn_net_set_nodelay(s);
-    VPN_INFO("TCP 已连接 %s:%u", host, port);
+    VPN_INFO("TCP connected %s:%u", host, port);
     *sock = s;
     return VPN_OK;
 }
@@ -232,11 +232,11 @@ int vpn_net_udp_connect(const char *host, uint16_t port, vpn_sock_t *sock)
     }
 
     if (connect(s, (struct sockaddr *)&ss, sslen) != 0) {
-        VPN_ERROR("UDP connect %s:%u 失败", host, port);
+        VPN_ERROR("UDP connect to %s:%u failed", host, port);
         vpn_net_close(&s);
         return VPN_ERR_IO;
     }
-    VPN_INFO("UDP 已连接 %s:%u", host, port);
+    VPN_INFO("UDP connected %s:%u", host, port);
     *sock = s;
     return VPN_OK;
 }
@@ -278,7 +278,7 @@ int vpn_net_udp_connect_local(uint16_t local_port, const char *host, uint16_t po
         la.sin_addr.s_addr = htonl(INADDR_ANY);
         la.sin_port = htons(local_port);
         if (bind(s, (struct sockaddr *)&la, sizeof(la)) != 0) {
-            VPN_WARN("绑定本地 UDP 端口 %u 失败（可能已被其他 L2TP 客户端占用）", local_port);
+            VPN_WARN("failed to bind local UDP port %u (may be in use by another L2TP client)", local_port);
             if (local_port == 1701) {
                 /* 端口被占用是硬错误：继续用随机端口只会在 PPP 阶段卡死 */
                 vpn_net_close(&s);
@@ -307,7 +307,7 @@ int vpn_net_udp_connect_local(uint16_t local_port, const char *host, uint16_t po
     }
 
     if (connect(s, (struct sockaddr *)&ss, sslen) != 0) {
-        VPN_ERROR("UDP connect %s:%u 失败", host, port);
+        VPN_ERROR("UDP connect to %s:%u failed", host, port);
         vpn_net_close(&s);
         return VPN_ERR_IO;
     }
@@ -340,7 +340,7 @@ int vpn_net_raw_esp_connect(const char *host, vpn_sock_t *sock)
     s = socket(AF_INET, SOCK_RAW, IPPROTO_ESP);
     if (s == VPN_INVALID_SOCK) {
         /* 非 root 或系统禁止：退回 UDP 封装路径，不算致命错误 */
-        VPN_DEBUG("原始 ESP socket 不可用（需要 root/CAP_NET_RAW），改用 UDP 封装");
+        VPN_DEBUG("raw ESP socket unavailable (needs root/CAP_NET_RAW), falling back to UDP encapsulation");
         return VPN_ERR_IO;
     }
     protect_socket(s);
@@ -416,8 +416,8 @@ int vpn_net_raw_gre_connect(const char *host, vpn_sock_t *sock)
 
     s = socket(AF_INET, SOCK_RAW, 47 /* IPPROTO_GRE */);
     if (s == VPN_INVALID_SOCK) {
-        VPN_ERROR("GRE(47) raw socket 创建失败：需要管理员权限（Windows）"
-                  "或 root/CAP_NET_RAW（Linux）");
+        VPN_ERROR("GRE(47) raw socket creation failed: needs administrator (Windows)"
+                  " or root/CAP_NET_RAW (Linux)");
         return VPN_ERR_UNSUPPORTED;
     }
     protect_socket(s);
@@ -433,32 +433,32 @@ int vpn_net_raw_gre_connect(const char *host, vpn_sock_t *sock)
 
         if (setsockopt(s, IPPROTO_IP, IP_HDRINCL, (const char *)&hdrincl,
                        (int)sizeof(hdrincl)) != 0) {
-            VPN_WARN("GRE raw socket 设置 IP_HDRINCL 失败（错误 %d），"
-                     "按内核补头方式发送", WSAGetLastError());
+            VPN_WARN("GRE raw socket: setting IP_HDRINCL failed (error %d), "
+                     "falling back to a kernel-supplied IP header", WSAGetLastError());
             g_gre_hdrincl = 0;
         } else {
             g_gre_hdrincl = hdrincl ? 1 : 0;
         }
-        VPN_INFO("GRE 发送模式：%s", g_gre_hdrincl ? "自带 IPv4 头（IP_HDRINCL）"
-                                                  : "裸 GRE（内核补 IP 头）");
+        VPN_INFO("GRE send mode: %s", g_gre_hdrincl ? "own IPv4 header (IP_HDRINCL)"
+                                                  : "bare GRE (kernel adds the IP header)");
     }
 
     if (local.sin_addr.s_addr) {
         local.sin_port = 0;
         if (bind(s, (struct sockaddr *)&local, sizeof(local)) != 0)
-            VPN_WARN("GRE raw socket bind 本机地址失败（错误 %d），可能收不到回包",
+            VPN_WARN("GRE raw socket bind to local address failed (error %d), replies may not arrive",
                      WSAGetLastError());
         else
-            VPN_DEBUG("GRE raw socket 已绑定本机 %08x", ntohl(local.sin_addr.s_addr));
+            VPN_DEBUG("GRE raw socket bound to local %08x", ntohl(local.sin_addr.s_addr));
     } else {
-        VPN_WARN("无法确定 GRE 的本机源地址，Windows 上可能收发异常");
+        VPN_WARN("cannot determine the local source address for GRE, traffic may fail on Windows");
     }
 #endif
     (void)local;
     (void)llen;
 
     if (connect(s, (struct sockaddr *)&ss, sslen) != 0) {
-        VPN_ERROR("GRE raw socket 绑定对端失败");
+        VPN_ERROR("GRE raw socket bind to the peer failed");
         vpn_net_close(&s);
         return VPN_ERR_IO;
     }
@@ -498,7 +498,7 @@ int vpn_net_raw_gre_send(vpn_sock_t sock, const void *buf, size_t len)
 
             if (we == WSAEWOULDBLOCK || we == WSAEINTR)
                 return VPN_OK;
-            VPN_WARN("GRE 发送失败（错误 %d）", we);
+            VPN_WARN("GRE send failed (error %d)", we);
             return VPN_ERR_IO;
         }
         return VPN_OK;
@@ -521,7 +521,7 @@ int vpn_net_raw_gre_send(vpn_sock_t sock, const void *buf, size_t len)
             }
         }
         if (!dst) {
-            VPN_WARN("GRE 发送缺少对端地址，丢弃 %zu 字节", len);
+            VPN_WARN("GRE send has no peer address, dropping %zu bytes", len);
             return VPN_ERR_IO;
         }
 
@@ -551,7 +551,7 @@ int vpn_net_raw_gre_send(vpn_sock_t sock, const void *buf, size_t len)
 
             if (we == WSAEWOULDBLOCK || we == WSAEINTR)
                 return VPN_OK;
-            VPN_WARN("GRE 发送失败（错误 %d）：源 %u.%u.%u.%u", we,
+            VPN_WARN("GRE send failed (error %d): source %u.%u.%u.%u", we,
                      ((const uint8_t *)&src)[0], ((const uint8_t *)&src)[1],
                      ((const uint8_t *)&src)[2], ((const uint8_t *)&src)[3]);
             return VPN_ERR_IO;
@@ -561,8 +561,8 @@ int vpn_net_raw_gre_send(vpn_sock_t sock, const void *buf, size_t len)
 
             if (!logged) {
                 logged = 1;
-                VPN_DEBUG("GRE: 已附加 IPv4 头（20 字节，协议 47）：%u.%u.%u.%u → %u.%u.%u.%u，"
-                         "总计 %zu 字节",
+                VPN_DEBUG("GRE: prepended IPv4 header (20 bytes, proto 47): %u.%u.%u.%u -> %u.%u.%u.%u, "
+                         "total %zu bytes",
                          ((const uint8_t *)&src)[0], ((const uint8_t *)&src)[1],
                          ((const uint8_t *)&src)[2], ((const uint8_t *)&src)[3],
                          ((const uint8_t *)&dst)[0], ((const uint8_t *)&dst)[1],

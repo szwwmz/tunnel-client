@@ -227,11 +227,11 @@ static int pptp_handle_packet(vpn_pptp *p, const uint8_t *pkt, size_t len)
     if (len < 12)
         return VPN_OK;
     if (vpn_be16(pkt + 2) != 0x0001) {
-        VPN_WARN("PPTP: 非控制消息（PPTP Message Type=%u），丢弃", vpn_be16(pkt + 2));
+        VPN_WARN("PPTP: non-control message (PPTP Message Type=%u), dropped", vpn_be16(pkt + 2));
         return VPN_OK;
     }
     if (vpn_be32(pkt + 4) != PPTP_MAGIC) {
-        VPN_WARN("PPTP: 魔数不正确，丢弃");
+        VPN_WARN("PPTP: bad magic number, dropped");
         return VPN_OK;
     }
 
@@ -251,7 +251,7 @@ static int pptp_handle_packet(vpn_pptp *p, const uint8_t *pkt, size_t len)
 
         if (result != 1 || blen < 16) {
             snprintf(p->reason, sizeof(p->reason),
-                     "服务器拒绝 PPTP 控制连接（result=%u err=%u）", result, err);
+                     "server rejected the PPTP control connection (result=%u err=%u)", result, err);
             VPN_ERROR("%s", p->reason);
             p->failed = true;
             break;
@@ -263,9 +263,9 @@ static int pptp_handle_packet(vpn_pptp *p, const uint8_t *pkt, size_t len)
             host[64] = 0;
             memcpy(vendor, body + 80, 64);
             vendor[64] = 0;
-            VPN_INFO("PPTP: 控制连接已建立（服务器 \"%s\" / \"%s\"）", host, vendor);
+            VPN_INFO("PPTP: control connection established (server \"%s\" / \"%s\")", host, vendor);
         } else {
-            VPN_INFO("PPTP: 控制连接已建立");
+            VPN_INFO("PPTP: control connection established");
         }
         break;
     }
@@ -281,24 +281,24 @@ static int pptp_handle_packet(vpn_pptp *p, const uint8_t *pkt, size_t len)
 
         if (result != 1) {   /* 1 = OK，其余均为失败 */
             snprintf(p->reason, sizeof(p->reason),
-                     "服务器拒绝 PPTP 呼叫（result=%u err=%u）", result, err);
+                     "server rejected the PPTP call (result=%u err=%u)", result, err);
             VPN_ERROR("%s", p->reason);
             p->failed = true;
             break;
         }
         if (!srv_call) {
-            snprintf(p->reason, sizeof(p->reason), "服务器呼叫应答缺少 Call ID");
+            snprintf(p->reason, sizeof(p->reason), "server call reply has no Call ID");
             VPN_ERROR("%s", p->reason);
             p->failed = true;
             break;
         }
         if (peer_call && peer_call != (uint16_t)p->p.call_id)
-            VPN_DEBUG("PPTP: 服务器回填 Peer Call ID=%u（本端 %u）",
+            VPN_DEBUG("PPTP: server filled in Peer Call ID=%u (local %u)",
                       peer_call, (unsigned)p->p.call_id);
 
         p->server_call_id = srv_call;
         p->peer_pkt_recv  = srv_recv;
-        VPN_INFO("PPTP: 呼叫已建立（服务器 call id=%u 窗口=%u 时延=%ums）",
+        VPN_INFO("PPTP: call established (server call id=%u window=%u delay=%ums)",
                  p->server_call_id, srv_recv, (unsigned)delay * 10);
 
         /* Set-Link-Info：告知对端链路参数 */
@@ -317,25 +317,25 @@ static int pptp_handle_packet(vpn_pptp *p, const uint8_t *pkt, size_t len)
     }
     case PPTP_MSG_CALL_DISCONNECT_NOTIFY:
     case PPTP_MSG_STOP_CTRL_CONN_REPLY:
-        snprintf(p->reason, sizeof(p->reason), "服务器断开 PPTP 会话 (type=%u)", type);
+        snprintf(p->reason, sizeof(p->reason), "server disconnected the PPTP session (type=%u)", type);
         p->open = false;
         if (p->cbs.on_closed)
             p->cbs.on_closed(p->cbs.ctx, p->reason);
         break;
     case PPTP_MSG_ECHO_REQ:
-        VPN_DEBUG("PPTP: 收到 Echo-Request，回 Echo-Reply");
+        VPN_DEBUG("PPTP: got Echo-Request, replying with Echo-Reply");
         pptp_send(p, PPTP_MSG_ECHO_REPLY, 0, NULL, 0);
         break;
     case PPTP_MSG_ECHO_REPLY:
         break;
     case PPTP_MSG_CALL_CLEAR_REQ:
-        snprintf(p->reason, sizeof(p->reason), "服务器清除 PPTP 呼叫（type=12）");
+        snprintf(p->reason, sizeof(p->reason), "server cleared the PPTP call (type=12)");
         p->open = false;
         if (p->cbs.on_closed)
             p->cbs.on_closed(p->cbs.ctx, p->reason);
         break;
     default:
-        VPN_DEBUG("PPTP: 未处理控制报文 type=%u", type);
+        VPN_DEBUG("PPTP: unhandled control message type=%u", type);
         break;
     }
     return VPN_OK;
@@ -352,7 +352,7 @@ int vpn_pptp_run_once(vpn_pptp *p, int timeout_ms)
         n = vpn_net_read(p->ctrl, p->rx + p->rxlen,
                          sizeof(p->rx) - p->rxlen, timeout_ms);
         if (n == 0) {
-            snprintf(p->reason, sizeof(p->reason), "控制连接被服务器关闭");
+            snprintf(p->reason, sizeof(p->reason), "control connection closed by the server");
             p->open = false;
             if (p->cbs.on_closed)
                 p->cbs.on_closed(p->cbs.ctx, p->reason);
@@ -371,7 +371,7 @@ int vpn_pptp_run_once(vpn_pptp *p, int timeout_ms)
         uint16_t plen = vpn_be16(p->rx);
 
         if (plen < 12 || plen > sizeof(p->rx)) {
-            VPN_WARN("PPTP: 非法报文长度 %u，清空接收缓冲", plen);
+            VPN_WARN("PPTP: invalid packet length %u, flushing receive buffer", plen);
             p->rxlen = 0;
             break;
         }
@@ -403,8 +403,8 @@ int vpn_pptp_run_once(vpn_pptp *p, int timeout_ms)
                     if (m >= 20 && (g[0] >> 4) == 4 && g[9] == 47)
                         off = (size_t)(g[0] & 0x0f) * 4;
                     avail = (size_t)m > off + 8 ? 8 : 0;
-                    VPN_DEBUG("PPTP: GRE 收包 #%lu raw=%d IP头=%zu flags=%02x%02x proto=%02x%02x "
-                             "plen=%u call=%u 期望=%u 结果=%d",
+                    VPN_DEBUG("PPTP: GRE rx #%lu raw=%d iphdr=%zu flags=%02x%02x proto=%02x%02x "
+                             "plen=%u call=%u expect=%u result=%d",
                              dbg_rx, m, off,
                              avail ? g[off] : 0, avail ? g[off + 1] : 0,
                              avail ? g[off + 2] : 0, avail ? g[off + 3] : 0,
@@ -416,7 +416,7 @@ int vpn_pptp_run_once(vpn_pptp *p, int timeout_ms)
 
             if (k > 0) {
                 ++p->gre_rx;
-                VPN_DEBUG("PPTP: GRE 收到 %d 字节 PPP 帧", k);
+                VPN_DEBUG("PPTP: GRE received a %d-byte PPP frame", k);
                 if (p->cbs.on_ppp)
                     p->cbs.on_ppp(p->cbs.ctx, ppp, (size_t)k);
             } else {
@@ -428,7 +428,7 @@ int vpn_pptp_run_once(vpn_pptp *p, int timeout_ms)
                     off = (size_t)(g[0] & 0x0f) * 4;
                 if (off + 8 <= (size_t)m &&
                     vpn_be16(g + off + 6) == (uint16_t)p->p.call_id)
-                    VPN_DEBUG("PPTP: GRE 解封装失败（%d 字节，首4字节 %02x%02x%02x%02x）",
+                    VPN_DEBUG("PPTP: GRE decapsulation failed (%d bytes, first 4 bytes %02x%02x%02x%02x)",
                               m, g[0], g[1], g[2], g[3]);
             }
         }
@@ -509,12 +509,12 @@ int vpn_pptp_open(vpn_pptp *p)
         return VPN_ERR_INVALID;
 
     if (!vpn_pptp_supported()) {
-        VPN_ERROR("PPTP: 当前平台无法创建 GRE RAW socket（Android 非 root / 缺少 CAP_NET_RAW）");
+        VPN_ERROR("PPTP: cannot create a GRE raw socket on this platform (Android without root / CAP_NET_RAW missing)");
         return VPN_ERR_UNSUPPORTED;
     }
 
-    VPN_WARN("PPTP: 正在使用不安全的协议（MPPE 已可被离线破解），建议改用 SSTP/L2TP");
-    VPN_INFO("PPTP: 连接 %s:%u", p->p.host, p->p.port);
+    VPN_WARN("PPTP: using an insecure protocol (MPPE can be cracked offline), prefer SSTP/L2TP");
+    VPN_INFO("PPTP: connecting %s:%u", p->p.host, p->p.port);
 
     rc = vpn_net_tcp_connect(p->p.host, p->p.port, p->p.connect_timeout_ms, &p->ctrl);
     if (rc != VPN_OK)
@@ -542,14 +542,14 @@ int vpn_pptp_open(vpn_pptp *p)
         if (p->failed)
             return VPN_ERR_PROTO;
         if (vpn_now_ms() > deadline) {
-            snprintf(p->reason, sizeof(p->reason), "等待 PPTP 控制连接应答超时");
+            snprintf(p->reason, sizeof(p->reason), "timed out waiting for the PPTP control-connection reply");
             return VPN_ERR_TIMEOUT;
         }
         rc = vpn_pptp_run_once(p, 200);
         if (rc == VPN_ERR_CLOSED || rc == VPN_ERR_IO)
             return rc;
         if (!p->ctrl_open && vpn_now_ms() - last_tx >= 3000) {
-            VPN_DEBUG("PPTP: 重发 Start-Control-Connection-Request");
+            VPN_DEBUG("PPTP: resending Start-Control-Connection-Request");
             pptp_send_start_req(p, body, pos);
             last_tx = vpn_now_ms();
         }
@@ -566,14 +566,14 @@ int vpn_pptp_open(vpn_pptp *p)
         if (p->failed)
             return VPN_ERR_PROTO;
         if (vpn_now_ms() > deadline) {
-            snprintf(p->reason, sizeof(p->reason), "等待 PPTP 呼叫应答超时");
+            snprintf(p->reason, sizeof(p->reason), "timed out waiting for the PPTP call reply");
             return VPN_ERR_TIMEOUT;
         }
         rc = vpn_pptp_run_once(p, 200);
         if (rc == VPN_ERR_CLOSED || rc == VPN_ERR_IO)
             return rc;
         if (!p->open && vpn_now_ms() - last_tx >= 3000) {
-            VPN_DEBUG("PPTP: 重发 Outgoing-Call-Request");
+            VPN_DEBUG("PPTP: resending Outgoing-Call-Request");
             pptp_send_outgoing_call(p);
             last_tx = vpn_now_ms();
         }
@@ -583,13 +583,13 @@ int vpn_pptp_open(vpn_pptp *p)
     rc = vpn_net_raw_gre_connect(p->p.host, &p->gre);
     if (rc != VPN_OK) {
         snprintf(p->reason, sizeof(p->reason),
-                 "GRE(47) 数据面不可用：请以管理员运行，并在服务端/防火墙放行 GRE");
+                 "GRE(47) data path unavailable: run as administrator and allow GRE on the server/firewall");
         VPN_ERROR("%s", p->reason);
         return rc;
     }
     vpn_net_set_nonblock(p->gre, true);
 
-    VPN_INFO("PPTP: 控制通道、呼叫与 GRE 数据面均已就绪（服务器 call id=%u）",
+    VPN_INFO("PPTP: control channel, call and GRE data path ready (server call id=%u)",
              p->server_call_id);
     return VPN_OK;
 }
@@ -608,7 +608,7 @@ int vpn_pptp_send_ppp(vpn_pptp *p, const uint8_t *frame, size_t len)
         return VPN_ERR_INVALID;
 
     if (p->gre == VPN_INVALID_SOCK) {
-        VPN_TRACE("PPTP: GRE 数据面未就绪，丢弃 %zu 字节", len);
+        VPN_TRACE("PPTP: GRE data path not ready, dropping %zu bytes", len);
         return VPN_ERR_UNSUPPORTED;
     }
 
@@ -621,7 +621,7 @@ int vpn_pptp_send_ppp(vpn_pptp *p, const uint8_t *frame, size_t len)
         static unsigned long fail_cnt;
 
         if ((++fail_cnt % 20) == 1)
-            VPN_WARN("PPTP: GRE 发送失败（%s），请检查防火墙/安全软件是否放行 GRE(47)",
+            VPN_WARN("PPTP: GRE send failed (%s), check that the firewall/AV allows GRE(47)",
                      vpn_strerror(rc));
         return rc;
     }
@@ -632,10 +632,10 @@ int vpn_pptp_send_ppp(vpn_pptp *p, const uint8_t *frame, size_t len)
      * 其余全部降到 DEBUG：一次连接几十上百个包，逐包 INFO 会把
      * 真正有用的阶段信息淹掉 */
     if (p->gre_tx == 1)
-        VPN_INFO("PPTP: GRE 已发出首包（%d 字节）%s", n,
+        VPN_INFO("PPTP: GRE first packet sent (%d bytes)%s", n,
                  vpn_hexdump(buf, (size_t)n < 16 ? (size_t)n : 16));
     else if ((p->gre_tx % 100) == 0)
-        VPN_DEBUG("PPTP: GRE 已发 %lu 个 / 已收 %lu 个", p->gre_tx, p->gre_rx);
+        VPN_DEBUG("PPTP: GRE sent %lu / received %lu", p->gre_tx, p->gre_rx);
     return VPN_OK;
 }
 
@@ -648,13 +648,13 @@ void vpn_pptp_close(vpn_pptp *p, const char *reason)
         uint8_t body[2] = { 0, 0 };
         pptp_send(p, PPTP_MSG_CALL_CLEAR_REQ, 0, body, sizeof(body));
         pptp_send(p, PPTP_MSG_STOP_CTRL_CONN_REQ, 0, NULL, 0);
-        VPN_INFO("PPTP: 已发送 Call-Clear/Stop 请求 (%s)", reason ? reason : "-");
+        VPN_INFO("PPTP: Call-Clear/Stop sent (%s)", reason ? reason : "-");
     }
     /* 断开时把 GRE 收发计数打出来：接收为 0 说明回包根本没进本机
      * （防火墙/安全软件拦入站 GRE，或对端未回），发送为 0 说明出不去 */
     if (p->gre != VPN_INVALID_SOCK)
-        VPN_INFO("PPTP: GRE 统计 发送 %lu 个 / 接收 %lu 个数据包%s", p->gre_tx, p->gre_rx,
-                 p->gre_rx == 0 ? "（回包未到达本机，请放行入站 GRE/47）" : "");
+        VPN_INFO("PPTP: GRE stats: sent %lu / received %lu packets%s", p->gre_tx, p->gre_rx,
+                 p->gre_rx == 0 ? " (no replies arriving, allow inbound GRE/47)" : "");
 
     p->open = false;
     p->rxlen = 0;

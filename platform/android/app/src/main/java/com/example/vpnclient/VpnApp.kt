@@ -28,7 +28,7 @@ class VpnApp : Application() {
                 /* 崩溃现场 = 堆栈 + 崩溃前最后 200 行日志，
                  * 否则光有堆栈看不出当时在做什么 */
                 File(filesDir, CRASH_FILE).writeText(
-                    "thread=${t.name}\n${sw}\n--- 最后日志 ---\n${LogFile.tail(200)}"
+                    "thread=${t.name}\n${sw}\n--- last log lines ---\n${LogFile.tail(200)}"
                 )
             } catch (_: Throwable) {
                 /* 崩溃处理本身绝不能再抛 */

@@ -292,7 +292,7 @@ VPN_API void vpn_capi_destroy(vpn_handle h)
         /* client 没释放成功说明工作线程还活着；此时连 capi_ctx 也不能放，
          * 否则线程里的 jni 回调会拿已释放的 ctx（同样崩在 native 层） */
         if (vpn_client_free(c->client) != VPN_OK) {
-            VPN_ERROR("客户端线程未退出，跳过释放以免崩溃（内存故意泄漏）");
+            VPN_ERROR("client thread did not exit, skipping teardown to avoid a crash (memory intentionally leaked)");
             c->client = NULL;
             return;
         }
