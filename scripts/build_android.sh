@@ -12,6 +12,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 THIRD="$ROOT/third_party"
+# 本地密钥配置（签名口令、GitHub token 等；secrets.env 不入库）
+[ -f "$ROOT/secrets.env" ] && { set -a; . "$ROOT/secrets.env"; set +a; }
 # 依次尝试多个候选路径，取第一个存在的
 pick_path() {
     for p in "$@"; do [ -e "$p" ] && { printf '%s' "$p"; return 0; }; done
@@ -111,13 +113,30 @@ cp "$OUT/lib/$ABI/"*.so "$OUT/apk/lib/$ABI/"
 "$BUILD_TOOLS/zipalign" -f -p 4 "$OUT/base.apk" "$OUT/base-aligned.apk"
 
 echo "== 6/6 签名 =="
-if [ ! -f "$OUT/debug.keystore" ]; then
-    keytool -genkeypair -keystore "$OUT/debug.keystore" -storepass android \
-        -keypass android -alias androiddebugkey -keyalg RSA -keysize 2048 \
-        -validity 10000 -dname "CN=Android Debug,O=Android,C=US" > /dev/null 2>&1
+# 签名证书优先级：
+#   1. $KEYSTORE —— 发布证书（含作者信息，私钥只在本机 keystore/ 下，绝不入库/上传）
+#   2. build-android/debug.keystore —— 公开的 Android debug 证书，仅在没有发布证书时兜底
+# 注意：换证书会导致已装用户无法覆盖升级（签名不一致），发布证书务必长期保存并备份
+KS="${KEYSTORE:-}"
+if [ -n "$KS" ] && [ -f "$KS" ]; then
+    KS_ALIAS="${KEY_ALIAS:-tunnel-client}"
+    KS_PASS="${KEYSTORE_PASS:?已设置 KEYSTORE 但缺少 KEYSTORE_PASS（见 secrets.env）}"
+    K_PASS="${KEY_PASS:-$KS_PASS}"
+    echo "使用发布证书签名: $KS (alias: $KS_ALIAS)"
+    SIGN_ARGS=(--ks "$KS" --ks-key-alias "$KS_ALIAS" \
+               --ks-pass "pass:$KS_PASS" --key-pass "pass:$K_PASS")
+else
+    echo "未配置 KEYSTORE，回退 debug 证书（仅供本地调试）" >&2
+    if [ ! -f "$OUT/debug.keystore" ]; then
+        keytool -genkeypair -keystore "$OUT/debug.keystore" -storepass android \
+            -keypass android -alias androiddebugkey -keyalg RSA -keysize 2048 \
+            -validity 10000 -dname "CN=Android Debug,O=Android,C=US" > /dev/null 2>&1
+    fi
+    SIGN_ARGS=(--ks "$OUT/debug.keystore" --ks-key-alias androiddebugkey \
+               --ks-pass pass:android --key-pass pass:android)
 fi
-"$BUILD_TOOLS/apksigner" sign --ks "$OUT/debug.keystore" \
-    --ks-pass pass:android --key-pass pass:android \
+
+"$BUILD_TOOLS/apksigner" sign "${SIGN_ARGS[@]}" \
     --v1-signing-enabled true --v2-signing-enabled true \
     --out "$DIST/$APK_FILE" "$OUT/base-aligned.apk"
 

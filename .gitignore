@@ -38,6 +38,12 @@ Thumbs.db
 *.local.json
 secrets.*
 
+# 签名证书与密钥（私钥绝不入库、绝不上传）
+/keystore/
+*.jks
+*.keystore
+*.p12
+
 # 临时抓包 / 调试输出
 gre.txt
 log.0.txt
