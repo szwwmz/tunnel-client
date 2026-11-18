@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LicenseRef-Proprietary
+   Copyright (c) 2026 wwm-spec. All rights reserved.
+ */
+
 /* vpn_crypto.c - MS-CHAPv2 (RFC 2759) / MPPE 密钥 (RFC 3079) / 哈希封装 */
 #include "vpncore/vpn_crypto.h"
 #include "vpncore/vpn_error.h"

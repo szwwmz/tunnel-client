@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LicenseRef-Proprietary
+   Copyright (c) 2026 wwm-spec. All rights reserved.
+ */
+
 /* vpn_log.h - 轻量日志
  *
  * 核心层不直接写文件/控制台，而是通过回调把日志抛给平台外壳：

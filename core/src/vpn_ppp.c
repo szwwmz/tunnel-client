@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LicenseRef-Proprietary
+   Copyright (c) 2026 wwm-spec. All rights reserved.
+ */
+
 /* vpn_ppp.c - PPP FSM / LCP / IPCP（RFC 1661 / 1332 / 1877） */
 #include "ppp_internal.h"
 

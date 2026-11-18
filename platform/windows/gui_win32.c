@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LicenseRef-Proprietary
+   Copyright (c) 2026 wwm-spec. All rights reserved.
+ */
+
 /* gui_win32.c - Windows 图形界面（纯 Win32 + Wintun，无需 .NET 运行时）
  *
  * 线程模型：

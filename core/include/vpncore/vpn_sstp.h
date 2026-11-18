@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LicenseRef-Proprietary
+   Copyright (c) 2026 wwm-spec. All rights reserved.
+ */
+
 /* vpn_sstp.h - SSTP 客户端（MS-SSTP）
  *
  * 层次：TCP -> TLS -> SSTP 控制报文 + PPP over HDLC-like 帧

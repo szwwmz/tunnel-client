@@ -22,4 +22,13 @@ COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
 AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+THIRD-PARTY COMPONENTS
+
+This license covers only the material owned by the copyright holder. It grants no
+rights whatsoever in third-party components that are bundled with or linked into
+the binaries (including, without limitation, Wintun™ (c) WireGuard LLC and
+OpenSSL (c) The OpenSSL Project Authors). Those components remain governed by
+their own licenses, as described in THIRD-PARTY-NOTICES.md and the LICENSES/
+directory of this repository.
+
 For licensing enquiries, contact the copyright holder.

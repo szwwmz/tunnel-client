@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LicenseRef-Proprietary
+   Copyright (c) 2026 wwm-spec. All rights reserved.
+ */
+
 /* vpn_net.h - socket / 解析 / 超时读写抽象
  *
  * 同时服务 SSTP(TCP) 与 L2TP(UDP)，统一在内部处理 EINTR/EAGAIN 与超时。

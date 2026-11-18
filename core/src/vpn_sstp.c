@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LicenseRef-Proprietary
+   Copyright (c) 2026 wwm-spec. All rights reserved.
+ */
+
 /* vpn_sstp.c - MS-SSTP 客户端：TCP + TLS + 控制报文 + PPP over HDLC */
 #include "vpncore/vpn_sstp.h"
 #include "vpncore/vpn_buf.h"

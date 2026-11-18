@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LicenseRef-Proprietary
+   Copyright (c) 2026 wwm-spec. All rights reserved.
+ */
+
 /* vpn_capi.c - C ABI 薄封装：配置转换 + 回调转发 */
 #include "vpncore/vpn_capi.h"
 

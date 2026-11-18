@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LicenseRef-Proprietary
+   Copyright (c) 2026 wwm-spec. All rights reserved.
+ */
+
 /* main.c - Linux CLI 外壳（SSTP / L2TP / PPTP 客户端）
  *
  * 只做平台相关的事：参数解析、密码输入、TUN 设备与路由、信号与日志输出。

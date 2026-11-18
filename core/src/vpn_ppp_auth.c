@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LicenseRef-Proprietary
+   Copyright (c) 2026 wwm-spec. All rights reserved.
+ */
+
 /* vpn_ppp_auth.c - PPP 认证：MS-CHAPv2 / CHAP-MD5 / PAP（RFC 2759 / 1994 / 1334） */
 #include "ppp_internal.h"
 

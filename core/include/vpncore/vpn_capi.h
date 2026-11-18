@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LicenseRef-Proprietary
+   Copyright (c) 2026 wwm-spec. All rights reserved.
+ */
+
 /* vpn_capi.h - 稳定的 C ABI（供 Android JNI 与 Windows C# P/Invoke 使用）
  *
  * 设计取舍：

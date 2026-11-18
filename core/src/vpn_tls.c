@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LicenseRef-Proprietary
+   Copyright (c) 2026 wwm-spec. All rights reserved.
+ */
+
 /* vpn_tls.c - OpenSSL 实现的 TLS 传输层（SSTP 使用） */
 #include "vpncore/vpn_tls.h"
 #include "vpncore/vpn_error.h"

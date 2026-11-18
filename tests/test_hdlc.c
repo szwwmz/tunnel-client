@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LicenseRef-Proprietary
+   Copyright (c) 2026 wwm-spec. All rights reserved.
+ */
+
 /* test_hdlc.c - PPP over HDLC 成帧（RFC 1662）编解码回环 */
 #include "test.h"
 

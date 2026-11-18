@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LicenseRef-Proprietary
+   Copyright (c) 2026 wwm-spec. All rights reserved.
+ */
+
 /* vpn_jni.c - Android JNI 桥：把 core 的 C ABI 暴露给 Kotlin
  *
  * 线程说明：on_state / on_stats 由核心 worker 线程回调，这里负责

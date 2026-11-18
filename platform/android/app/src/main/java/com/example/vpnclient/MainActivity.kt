@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: LicenseRef-Proprietary
+// Copyright (c) 2026 wwm-spec. All rights reserved.
+
 @file:Suppress("DEPRECATION")
 
 package com.example.vpnclient
@@ -38,7 +41,7 @@ import android.widget.Toast
 class MainActivity : Activity(), UiBus.Listener {
 
     companion object {
-        const val VERSION = "1.3.13"
+        const val VERSION = "1.3.14"
 
         private const val PREFS = "vpn-gui"
         private const val REQ_VPN = 100
@@ -476,6 +479,9 @@ class MainActivity : Activity(), UiBus.Listener {
     private fun showAbout() {
         val zhNotes =
             "v$VERSION\n" +
+            "  · 合规：随包提供第三方组件声明（Wintun / OpenSSL / NDK / Kotlin），\n" +
+            "    许可全文见「第三方组件」按钮，与 Windows 包内的 NOTICES 一致\n" +
+            "  · 合规：源文件补充 SPDX 许可标识与版权头；应用图标确认自绘原创\n" +
             "  · 新增中英文双语：跟随系统语言，界面、通知、状态全部切换\n" +
             "  · 界面与“关于”显示作者：${L.AUTHOR}\n" +
             "  · 恢复 L2TP（无 IPsec）：只走 UDP 1701，用普通 UDP socket，\n" +
@@ -519,6 +525,11 @@ class MainActivity : Activity(), UiBus.Listener {
 
         val enNotes =
             "v$VERSION\n" +
+            "  · Compliance: third-party notices (Wintun / OpenSSL / NDK /" +
+            "    Kotlin) now ship with the package, viewable via the" +
+            "    \"Third-party\" button and identical to the Windows NOTICES\n" +
+            "  · Compliance: SPDX identifiers and copyright headers added to" +
+            "    all sources; the app icon is confirmed to be original work\n" +
             "  · Chinese/English UI, follows the system language" +
             "    (screens, notifications, states)\n" +
             "  · Author shown on screen and in this dialog: ${L.AUTHOR}\n" +
@@ -566,6 +577,36 @@ class MainActivity : Activity(), UiBus.Listener {
             .setTitle(L.t("关于 v$VERSION · 作者 ", "About v$VERSION · ") + L.AUTHOR)
             .setMessage(L.t(zhNotes, enNotes))
             .setPositiveButton(L.t("知道了", "OK"), null)
+            .setNeutralButton(L.t("第三方组件", "Third-party"), null)
+            .create()
+            .apply {
+                setOnShowListener { dlg ->
+                    (dlg as AlertDialog).getButton(AlertDialog.BUTTON_NEUTRAL)
+                        .setOnClickListener { showThirdPartyNotices() }
+                }
+            }
+            .show()
+    }
+
+    /** 展示随包分发的第三方组件与许可声明（assets/THIRD-PARTY-NOTICES.txt） */
+    private fun showThirdPartyNotices() {
+        val text = try {
+            assets.open("THIRD-PARTY-NOTICES.txt").bufferedReader().use { it.readText() }
+        } catch (e: Exception) {
+            L.t("无法读取许可文件：", "Cannot read the notices file: ") + e.message
+        }
+        val pad = (14 * resources.displayMetrics.density).toInt()
+        val view = TextView(this).apply {
+            setText(text)
+            setTextIsSelectable(true)
+            textSize = 10f
+            typeface = Typeface.MONOSPACE
+            setPadding(pad, pad, pad, pad)
+        }
+        AlertDialog.Builder(this)
+            .setTitle(L.t("第三方组件与许可", "Third-party components & licenses"))
+            .setView(ScrollView(this).apply { addView(view) })
+            .setPositiveButton(L.t("关闭", "Close"), null)
             .show()
     }
 

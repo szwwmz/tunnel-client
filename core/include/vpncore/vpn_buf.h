@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LicenseRef-Proprietary
+   Copyright (c) 2026 wwm-spec. All rights reserved.
+ */
+
 /* vpn_buf.h - 动态写缓冲 + 只读游标
  *
  * 网络字节序（大端）与大端字写入都提供，PPP/L2TP/SSTP 报文构造统一走这里，

@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LicenseRef-Proprietary
+   Copyright (c) 2026 wwm-spec. All rights reserved.
+ */
+
 /* vpn_ike.c - IKEv1 (PSK) + ESP transport，用户态实现
  *
  * 覆盖 L2TP/IPsec：IKEv1 主模式 PSK + Quick Mode(ESP transport)

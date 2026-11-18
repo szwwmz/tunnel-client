@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LicenseRef-Proprietary
+   Copyright (c) 2026 wwm-spec. All rights reserved.
+ */
+
 /* vpn_l2tp.c - L2TPv2 客户端（RFC 2661，voluntary tunnel / LAC 模式）
  *
  * IPsec：psk 非空时本模块自行完成 IKEv1 主模式 + Quick Mode，之后所有 L2TP

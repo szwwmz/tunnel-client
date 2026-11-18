@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LicenseRef-Proprietary
+   Copyright (c) 2026 wwm-spec. All rights reserved.
+ */
+
 /* vpn_tun_win.c - Windows 侧的 TUN 实现（Wintun）
  *
  * 为什么在这里做而不是 C#：

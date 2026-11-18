@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LicenseRef-Proprietary
+   Copyright (c) 2026 wwm-spec. All rights reserved.
+ */
+
 /* vpn_md4.c - MD4 (RFC 1320)，MS-CHAPv2 的 NT 密码哈希需要 */
 #include "vpncore/vpn_crypto.h"
 

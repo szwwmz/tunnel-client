@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: LicenseRef-Proprietary
+// Copyright (c) 2026 wwm-spec. All rights reserved.
+
 using System;
 using System.Runtime.InteropServices;
 using System.Text;

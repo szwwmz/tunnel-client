@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LicenseRef-Proprietary
+   Copyright (c) 2026 wwm-spec. All rights reserved.
+ */
+
 /* test_mschapv2.c - MS-CHAPv2 / MPPE 测试向量
  *
  * 期望值由 OpenSSL（MD4 legacy provider + DES-ECB）与 Python hashlib 独立算出，

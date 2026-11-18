@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LicenseRef-Proprietary
+   Copyright (c) 2026 wwm-spec. All rights reserved.
+ */
+
 /* ppp_internal.h - PPP 栈模块内部结构（不对外暴露） */
 #ifndef PPP_INTERNAL_H
 #define PPP_INTERNAL_H

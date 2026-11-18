@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LicenseRef-Proprietary
+   Copyright (c) 2026 wwm-spec. All rights reserved.
+ */
+
 /* vpn_crypto.h - 认证/加密原语
  *
  * 仅收录 PPP 认证链必需且 OpenSSL 3.0 默认 provider 不提供的算法：

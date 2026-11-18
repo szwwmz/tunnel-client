@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LicenseRef-Proprietary
+   Copyright (c) 2026 wwm-spec. All rights reserved.
+ */
+
 /* vpn_ppp.h - PPP 协议栈（共享核心）
  *
  * SSTP = TLS 上的 PPP；L2TP = UDP 上的 PPP。两条路径在核心层汇聚到同一套

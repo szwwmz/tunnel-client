@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LicenseRef-Proprietary
+   Copyright (c) 2026 wwm-spec. All rights reserved.
+ */
+
 /* vpn_des.c - DES-ECB 单块加密（MS-CHAPv2 ChallengeResponse 需要）
  *
  * OpenSSL 3.0 把 DES 移入 legacy provider，默认 provider 拿不到，
