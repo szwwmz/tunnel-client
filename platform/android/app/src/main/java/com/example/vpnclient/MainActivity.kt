@@ -82,6 +82,7 @@ class MainActivity : Activity(), UiBus.Listener {
     private lateinit var statusCard: LinearLayout
     private lateinit var statusDot: TextView
     private lateinit var statusText: TextView
+    private lateinit var statusSub: TextView
     private lateinit var statsText: TextView
     private lateinit var logText: TextView
     private lateinit var btnConnect: Button
@@ -151,6 +152,40 @@ class MainActivity : Activity(), UiBus.Listener {
     // ---------------- 界面构建 ----------------
 
     private fun buildUi(): View {
+        /* 顶部固定状态条：整页可以滚动，状态始终留在顶部可见；
+         * 圆点颜色区分断开（灰）/ 连接中（橙）/ 已连接（绿）/ 失败（红） */
+        statusCard = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(14), dp(12), dp(14), dp(12))
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                setMargins(dp(20), dp(16), dp(20), 0)
+            }
+        }
+        statusDot = TextView(this).apply {
+            text = "●"
+            textSize = 18f
+            setPadding(0, 0, dp(8), 0)
+        }
+        statusText = TextView(this).apply {
+            text = L.t("未连接", "Not connected")
+            textSize = 16f
+            setTypeface(typeface, Typeface.BOLD)
+        }
+        statusCard.addView(statusDot)
+        /* 右侧竖向：第一行状态，第二行连上后显示本机/服务器/DNS（未连接时隐藏） */
+        statusCard.addView(LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(statusText)
+            statusSub = TextView(this@MainActivity).apply {
+                textSize = 12f
+                visibility = View.GONE
+            }
+            addView(statusSub)
+        }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(20), dp(20), dp(20), dp(16))
@@ -256,31 +291,6 @@ class MainActivity : Activity(), UiBus.Listener {
         btnRow.addView(btnDisconnect, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         root.addView(btnRow)
 
-        /* 状态条：圆点 + 状态文字，用颜色区分断开 / 连接中 / 已连接 / 失败，
-         * 放在按钮正下方，不用翻日志就能看出当前处在哪一步 */
-        statusCard = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(14), dp(12), dp(14), dp(12))
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(14) }
-        }
-        statusDot = TextView(this).apply {
-            text = "●"
-            textSize = 18f
-            setPadding(0, 0, dp(8), 0)
-        }
-        statusText = TextView(this).apply {
-            text = L.t("未连接", "Not connected")
-            textSize = 16f
-            setTypeface(typeface, Typeface.BOLD)
-        }
-        statusCard.addView(statusDot)
-        statusCard.addView(statusText, LinearLayout.LayoutParams(
-            0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-        root.addView(statusCard)
-
         val about = Button(this).apply {
             text = L.t("版本说明", "Release notes")
             setOnClickListener { showAbout() }
@@ -335,7 +345,13 @@ class MainActivity : Activity(), UiBus.Listener {
             setPadding(0, dp(14), 0, 0)
         })
 
-        val wrapper = ScrollView(this).apply { addView(root) }
+        /* 外层改成竖向 LinearLayout：状态条固定在顶部，下面的表单与日志才滚动 */
+        val wrapper = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Color.WHITE)
+            addView(statusCard)
+            addView(ScrollView(this@MainActivity).apply { addView(root) })
+        }
         return wrapper
     }
 
@@ -720,12 +736,20 @@ class MainActivity : Activity(), UiBus.Listener {
         btnConnect.isEnabled = !running
         btnDisconnect.isEnabled = running
         applyConfigLock(running)
-        if (state == VpnCore.STATE_CONNECTED) {
+        /* 连上之后在状态条第二行补上本机地址、服务器、DNS；其它状态隐藏 */
+        if (connected) {
             val info = VpnCore.tunnelInfo()
-            if (info.localIp.isNotBlank())
-                statusText.append(L.t(
-                    "\n本机 ${info.localIp}  服务器 ${info.peerIp}  DNS ${info.dns1}",
-                    "\nLocal ${info.localIp}  Server ${info.peerIp}  DNS ${info.dns1}"))
+            if (info.localIp.isNotBlank()) {
+                statusSub.text = L.t(
+                    "本机 ${info.localIp} · 服务器 ${info.peerIp} · DNS ${info.dns1}",
+                    "Local ${info.localIp} · Server ${info.peerIp} · DNS ${info.dns1}")
+                statusSub.setTextColor(fg)
+                statusSub.visibility = View.VISIBLE
+            } else {
+                statusSub.visibility = View.GONE
+            }
+        } else {
+            statusSub.visibility = View.GONE
         }
     }
 
