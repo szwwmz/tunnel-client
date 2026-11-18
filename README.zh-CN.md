@@ -1,4 +1,4 @@
-# 跨平台隧道客户端（Tunnel Client）
+# tunnel-client（跨平台隧道客户端）
 
 [English](README.md) | 简体中文
 
@@ -157,5 +157,5 @@ Wintun 仅通过其公开 API（`wintun.h`）调用，未做修改；Wintun™ �
 
 ## 许可
 
-专有且保密，保留所有权利，详见 [LICENSE](LICENSE)。第三方组件仍按上表所列各自
-许可执行。
+MIT 许可，详见 [LICENSE](LICENSE)。允许自由使用、修改、分发与再许可（含商业用途），
+只需保留版权声明与许可声明。第三方组件仍按上表所列各自许可执行。

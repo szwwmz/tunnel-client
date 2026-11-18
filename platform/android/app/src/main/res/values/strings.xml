@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- 默认英文；中文见 values-zh。应用名随系统语言切换 -->
 <resources>
-    <string name="app_name">VPN Client</string>
+    <string name="app_name">tunnel-client</string>
     <string name="notification_channel">VPN status</string>
 </resources>

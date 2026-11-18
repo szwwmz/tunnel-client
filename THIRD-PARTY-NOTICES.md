@@ -5,9 +5,9 @@ This file lists third-party components used, linked against or redistributed by
 this project, together with the applicable license terms.
 
 适用范围：`vpn-gui.exe`（Windows）、`vpn-cli` / `libvpncore.so`（Linux）、
-`vpn-client-android-*.apk`（Android）。
+`tunnel-client-android-*.apk`（Android）。
 Scope: `vpn-gui.exe` (Windows), `vpn-cli` / `libvpncore.so` (Linux) and
-`vpn-client-android-*.apk` (Android).
+`tunnel-client-android-*.apk` (Android).
 
 ---
 
@@ -15,12 +15,12 @@ Scope: `vpn-gui.exe` (Windows), `vpn-cli` / `libvpncore.so` (Linux) and
 
 除下列第三方组件外，`core/`、`cli/`、`platform/`、`tests/`、`scripts/` 下的全部
 源代码、界面资源与图标均为本项目原创，版权归版权持有人所有，按仓库根目录的
-`LICENSE` 授权。
+`LICENSE`（MIT）授权。
 
 All source code under `core/`, `cli/`, `platform/`, `tests/` and `scripts/`, as
 well as all UI resources and the application icon (`app.ico`, generated in-house
 from original artwork), are original works of this project, owned by the
-copyright holder and licensed under the `LICENSE` file in the repository root.
+copyright holder and licensed under the MIT License (see the `LICENSE` file in the repository root).
 
 - `app.ico` — 自绘图标，含 7 种尺寸，无第三方素材（不含图标库、字体或图库资源）。
   `app.ico` is an in-house generated icon (7 sizes). No stock icon, font or

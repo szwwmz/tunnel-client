@@ -20,15 +20,15 @@ BEGIN
     BEGIN
         BLOCK "080404b0"
         BEGIN
-            VALUE "CompanyName",      "wwme"
-            VALUE "FileDescription",  "VPN 客户端 (SSTP/L2TP/PPTP)"
-            VALUE "FileVersion",      "1.3.0.0"
+            VALUE "CompanyName",      "wwm"
+            VALUE "FileDescription",  "tunnel-client (SSTP/L2TP/PPTP)"
+            VALUE "FileVersion",      "1.4.0.0"
             VALUE "InternalName",     "vpn-gui"
-            VALUE "LegalCopyright",   "Copyright (C) 2026 wwm <wwme@163.com>"
+            VALUE "LegalCopyright",   "Copyright (C) 2026 wwm <szwwmz@gmail.com>"
             VALUE "OriginalFilename", "vpn-gui.exe"
-            VALUE "ProductName",      "VPN 客户端"
+            VALUE "ProductName",      "tunnel-client"
             VALUE "ProductVersion",   "1.4.0.0"
-            VALUE "Comments",         "作者 wwm  wwme@163.com"
+            VALUE "Comments",         "作者 wwm  szwwmz@gmail.com"
         END
     END
     BLOCK "VarFileInfo"

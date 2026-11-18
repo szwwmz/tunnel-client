@@ -154,7 +154,7 @@ class MainActivity : Activity(), UiBus.Listener {
         }
 
         root.addView(TextView(this).apply {
-            text = L.t("VPN 客户端", "VPN Client")
+            text = L.t("tunnel-client", "tunnel-client")
             textSize = 20f
             setTypeface(typeface, Typeface.BOLD)
         })
@@ -480,7 +480,7 @@ class MainActivity : Activity(), UiBus.Listener {
         val zhNotes =
             "v$VERSION\n" +
             "  · 三端版本号统一为 1.4.0（Windows 端本版新增界面中英双语切换）\n" +
-            "  · 作者信息更新为 wwm &lt;wwme@163.com&gt;\n" +
+            "  · 作者信息更新为 wwm <szwwmz@gmail.com>\n" +
             "  · 连接日志、CLI 帮助与错误提示统一改为英文（界面文案仍中英双语）\n" +
             "  · 修复 CALL_CONNECTED 原地构造时 memcpy 源目标重叠（未定义行为，\n" +
             "    gcc -Wrestrict 报警）；改为 memmove 并补回归用例\n" +
@@ -533,7 +533,7 @@ class MainActivity : Activity(), UiBus.Listener {
             "v$VERSION\n" +
             "  · Version aligned across all three platforms (1.4.0); the Windows\n" +
             "    build adds a Chinese/English UI switch in this release\n" +
-            "  · Author updated to wwm <wwme@163.com>\n" +
+            "  · Author updated to wwm <szwwmz@gmail.com>\n" +
             "  · Connection logs, CLI help and error messages are now English-only" +
             "    (the UI stays bilingual)\n" +
             "  · Fixed UB: in-place memcpy overlap when building CALL_CONNECTED" +

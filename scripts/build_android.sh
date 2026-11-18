@@ -6,7 +6,7 @@
 #   kotlinc: /opt/kotlinc
 #   OpenSSL for Android (arm64, 静态库): 默认 /tmp/android-ssl
 #
-# 产物：dist/android/vpn-client-android-<版本>.apk
+# 产物：dist/android/tunnel-client-android-<版本>.apk
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -27,7 +27,7 @@ APK_VERSION_NAME="${APK_VERSION_NAME:-1.4.0}"
 APK_VERSION_CODE="${APK_VERSION_CODE:-150}"
 OUT="$ROOT/build-android"
 # 产物名带版本号，避免多个版本混在一个固定文件名里
-APK_FILE="vpn-client-android-${APK_VERSION_NAME}.apk"
+APK_FILE="tunnel-client-android-${APK_VERSION_NAME}.apk"
 DIST="$ROOT/dist/android"
 
 ABI=arm64-v8a
