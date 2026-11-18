@@ -418,6 +418,7 @@ class MainActivity : Activity(), UiBus.Listener {
         setTextColor(0xFF0F172A.toInt())
         setHintTextColor(0xFF94A3B8.toInt())
         setPadding(dp(12), dp(2), dp(12), dp(2))
+        gravity = Gravity.CENTER_VERTICAL
         background = rounded(0xFFF1F5F9.toInt(), 10)
         setSingleLine(true)
     }
