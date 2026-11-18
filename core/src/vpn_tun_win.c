@@ -361,7 +361,8 @@ int vpn_tun_configure(const char *dev_name, uint32_t local_ip, uint32_t peer_ip,
     if (local_ip) {
         char ip[32], mask[32];
         vpn_ip_ntoa(local_ip, ip, sizeof(ip));
-        vpn_ip_ntoa(netmask ? netmask : htonl(0xFFFFFF00u), mask, sizeof(mask));
+        /* 点对点接口默认 /32（未指定掩码时不能退化成 /24） */
+        vpn_ip_ntoa(netmask ? netmask : htonl(0xFFFFFFFFu), mask, sizeof(mask));
         utf8_to_wide(ip, wip, 32);
         utf8_to_wide(mask, wmask, 32);
         /* 注意：swprintf 中 %s 接的是窄串，宽串必须用 %ls，否则只取到首字节 */

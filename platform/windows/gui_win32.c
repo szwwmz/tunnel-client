@@ -1029,6 +1029,31 @@ static const struct {
 
 static int g_route_all_on, g_route_priv_on;
 
+/* 只接管私有网段时，服务器下发的 DNS 若落在这三个网段之外，
+ * 必须单独补一条 /32 路由，否则系统的 DNS 查询会从物理网卡出去（永远解析不到） */
+static uint32_t g_dns_routes[2];
+static int g_dns_route_n;
+
+static int is_priv_addr(uint32_t be)
+{
+    uint32_t h = ntohl(be);
+
+    if ((h & 0xFF000000u) == 0x0A000000u) return 1;   /* 10.0.0.0/8 */
+    if ((h & 0xFFF00000u) == 0xAC100000u) return 1;   /* 172.16.0.0/12 */
+    if ((h & 0xFFFF0000u) == 0xC0A80000u) return 1;   /* 192.168.0.0/16 */
+    return 0;
+}
+
+static void dns_routes_clear(void)
+{
+    while (g_dns_route_n > 0) {
+        uint32_t a = g_dns_routes[--g_dns_route_n];
+
+        if (g_tun_name[0])
+            vpn_tun_del_route(g_tun_name, a, htonl(0xFFFFFFFFu));
+    }
+}
+
 static void routes_apply(int want_all, int want_priv)
 {
     size_t i, n = sizeof(g_priv_nets) / sizeof(g_priv_nets[0]);
@@ -1094,6 +1119,7 @@ static void routes_cleanup(void)
                               htonl(g_priv_nets[i].mask));
         g_route_priv_on = 0;
     }
+    dns_routes_clear();
 }
 
 static void do_disconnect(void);
@@ -1290,7 +1316,10 @@ static void update_status(void)
     if (st.state == VPN_CAPI_STATE_CONNECTED && g_has_tun && st.local_ip[0] &&
         (!g_net_configured || strcmp(g_last_ip, st.local_ip) != 0)) {
         uint32_t local = 0, peer_ip = 0;
-        uint32_t mask = htonl(0xFFFFFF00u);
+        /* SSTP / L2TP / PPTP 都是点对点接口，服务器分配的地址应配 /32：
+         * 用 /24 会让系统误以为同网段的其它地址直连可达，绕过隧道；
+         * RouterOS 侧 L2TP 也是按 /32 下发的 */
+        uint32_t mask = htonl(0xFFFFFFFFu);
 
         if (vpn_ip_parse(st.local_ip, &local) == 0) {
             if (st.peer_ip[0])
@@ -1302,9 +1331,24 @@ static void update_status(void)
                 log_fmt("[INFO] DNS takeover skipped by configuration (vpndns=0)");
             if (st.dns1[0] && g_cfg_vpndns) {
                 uint32_t d1 = 0, d2 = 0;
+                int route_all_now = (Button_GetCheck(g_hRouteAll) == BST_CHECKED);
+
                 vpn_ip_parse(st.dns1, &d1);
                 if (st.dns2[0])
                     vpn_ip_parse(st.dns2, &d2);
+                /* 只接管私有网段时，落在网段外的 DNS 要单独给一条 /32 路由，
+                 * 否则查询被系统发往物理网卡，VPN 下发的 DNS 形同虚设 */
+                dns_routes_clear();
+                if (d1 && !route_all_now && !is_priv_addr(d1) &&
+                    vpn_tun_add_route_via(g_tun_name, d1, htonl(0xFFFFFFFFu), 0) == VPN_OK) {
+                    g_dns_routes[g_dns_route_n++] = d1;
+                    log_fmt("[INFO] DNS route added: %s/32 -> %s", st.dns1, g_tun_name);
+                }
+                if (d2 && !route_all_now && !is_priv_addr(d2) &&
+                    vpn_tun_add_route_via(g_tun_name, d2, htonl(0xFFFFFFFFu), 0) == VPN_OK) {
+                    g_dns_routes[g_dns_route_n++] = d2;
+                    log_fmt("[INFO] DNS route added: %s/32 -> %s", st.dns2, g_tun_name);
+                }
                 if (d1) {
                     /* 接口度量压到 5，系统才会优先用 VPN 下发的 DNS；
                      * 否则 Windows 仍先问物理网卡的 DNS，内网域名解析不到 */
@@ -1320,7 +1364,7 @@ static void update_status(void)
                          g_hRoutePriv && Button_GetCheck(g_hRoutePriv) == BST_CHECKED);
             snprintf(g_last_ip, sizeof(g_last_ip), "%s", st.local_ip);
             g_net_configured = 1;
-            log_fmt("[INFO] adapter configured: %s/24 gateway %s", st.local_ip, st.peer_ip);
+            log_fmt("[INFO] adapter configured: %s/32 gateway %s", st.local_ip, st.peer_ip);
             g_was_connected = 1;
         }
     }

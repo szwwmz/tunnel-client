@@ -231,10 +231,21 @@ class VpnClientService : VpnService() {
                 Log.w(TAG, "addDisallowedApplication failed", e)
             }
             /* DNS 只在服务器下发了地址时才接管，否则会把自己配的
-             * 1.1.1.1 塞进隧道，断网后解析全部失败 */
+             * 1.1.1.1 塞进隧道，断网后解析全部失败。
+             *
+             * 未勾“所有流量走 VPN”时隧道里只有三个私有网段的路由，若下发的
+             * DNS 不在这三个网段内（例如 8.8.8.8），系统会把查询发往物理网卡
+             * 而永远解析失败；这里给这类 DNS 补一条 /32 路由，保证解析也走隧道。 */
             if (vpnDns) {
-                if (info.dns1.isNotBlank()) builder.addDnsServer(info.dns1)
-                if (info.dns2.isNotBlank()) builder.addDnsServer(info.dns2)
+                val dnsList = listOf(info.dns1, info.dns2)
+                    .filter { it.isNotBlank() && it != "0.0.0.0" }
+                if (dnsList.isEmpty())
+                    Log.w(TAG, "vpnDns=1 but server sent no DNS, keep system resolver")
+                for (dns in dnsList) {
+                    builder.addDnsServer(dns)
+                    if (!routeAll && !coveredByPrivateRoutes(dns))
+                        builder.addRoute(dns, 32)
+                }
             }
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -257,6 +268,15 @@ class VpnClientService : VpnService() {
             notify(L.t("建立隧道失败：${e.message}", "Tunnel setup failed: ${e.message}"))
             stopSelf()
         }
+    }
+
+    /** DNS 是否已被 routeAll=0 时那三个私有网段路由覆盖（10/8、172.16/12、192.168/16） */
+    private fun coveredByPrivateRoutes(addr: String): Boolean {
+        val o = addr.split('.').mapNotNull { it.toIntOrNull() }
+        if (o.size != 4 || o.any { it < 0 || it > 255 }) return false
+        return o[0] == 10 ||
+            (o[0] == 172 && o[1] in 16..31) ||
+            (o[0] == 192 && o[1] == 168)
     }
 
     private fun onStateChanged(state: Int, detail: String) {
