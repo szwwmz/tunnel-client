@@ -36,3 +36,6 @@ secrets.*
 # 临时抓包 / 调试输出
 gre.txt
 log.0.txt
+
+# 内部需求文档（不入库）
+/项目需求.html
