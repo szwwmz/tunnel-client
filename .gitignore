@@ -9,8 +9,9 @@
 *.exe
 *.dylib
 
-# 分发产物（体积大，由 scripts/package_all.sh 生成）
-/dist/
+# 分发产物：只跟踪 dist/ 顶层的汇总 zip（发布用），明细目录不入库
+/dist/*
+!/dist/*.zip
 
 # 日志与临时文件
 *.log
