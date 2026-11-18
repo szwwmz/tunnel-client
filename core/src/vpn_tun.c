@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LicenseRef-Proprietary
+   Copyright (c) 2026 wwm-spec. All rights reserved.
+ */
+
 #include "vpncore/vpn_tun.h"
 #include "vpncore/vpn_error.h"
 #include "vpncore/vpn_log.h"

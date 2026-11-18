@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LicenseRef-Proprietary
+   Copyright (c) 2026 wwm-spec. All rights reserved.
+ */
+
 /* test_capi.c - C ABI（JNI / C# 入口）冒烟测试 */
 #include "test.h"
 

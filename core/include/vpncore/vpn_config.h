@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LicenseRef-Proprietary
+   Copyright (c) 2026 wwm-spec. All rights reserved.
+ */
+
 /* vpn_config.h - 跨平台连接配置
  *
  * 字段与 Android/Windows 的 UI 一一对应：服务器、端口（SSTP 可自定义）、

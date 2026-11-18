@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LicenseRef-Proprietary
+   Copyright (c) 2026 wwm-spec. All rights reserved.
+ */
+
 /* vpn_platform.h - 极薄的平台抽象（线程/互斥/时间）
  *
  * 目的：核心层在 Android(NDK/pthread)、Linux CLI、Windows(MSVC/CreateThread)

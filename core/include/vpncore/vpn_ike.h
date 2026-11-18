@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LicenseRef-Proprietary
+   Copyright (c) 2026 wwm-spec. All rights reserved.
+ */
+
 /* vpn_ike.h - IKEv1 (PSK) + ESP transport，用户态实现
  *
  * 目的：让客户端自带 L2TP/IPsec 能力，不依赖系统 strongSwan，也不要求

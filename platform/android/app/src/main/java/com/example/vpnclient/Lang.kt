@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: LicenseRef-Proprietary
+// Copyright (c) 2026 wwm-spec. All rights reserved.
+
 package com.example.vpnclient
 
 import java.util.Locale

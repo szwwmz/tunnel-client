@@ -139,3 +139,23 @@ PPP 帧整体错位后被静默丢弃，表现为"GRE 一直发、对端一个�
 - MPPE 只求出密钥用于 SSTP Crypto-Binding；若需 L2TP 数据面 MPPE 加密，
   需扩展 `vpn_ppp_rx/tx` 的 RC4 处理（40/56/128 位）。
 - 单元测试不依赖真实服务器；端到端联调需要可用的 SSTP/L2TP 服务端。
+## 第三方组件
+
+本项目自有代码（`core/`、`cli/`、`platform/`、`tests/` 以及自绘的 `app.ico` 图标）
+为原创作品；发布包里包含或链接了以下第三方组件：
+
+| 组件 | 使用方 | 许可 |
+|---|---|---|
+| Wintun 0.14.1（`wintun.dll`，官方签名 amd64 构建） | Windows | Wintun Prebuilt Binaries License |
+| OpenSSL 3.0.2 | Linux（动态）、Android/Windows（静态） | Apache-2.0 |
+| Android NDK / libc++ / Kotlin stdlib | Android | Apache-2.0 |
+
+Wintun 仅通过其公开 API（`wintun.h`）调用，未做修改；Wintun™ 是 WireGuard LLC 的
+商标，本项目与 WireGuard 项目无隶属关系、未获其背书。许可全文见 `LICENSES/` 与
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)；每个发布包都在二进制同级附带
+同样的声明（Android 端在「关于 → 第三方组件」可查看）。
+
+## 许可
+
+专有且保密，保留所有权利，详见 [LICENSE](LICENSE)。第三方组件仍按上表所列各自
+许可执行。

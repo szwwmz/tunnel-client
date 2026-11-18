@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LicenseRef-Proprietary
+   Copyright (c) 2026 wwm-spec. All rights reserved.
+ */
+
 /* vpn_l2tp.h - L2TP 客户端（RFC 2661，voluntary tunnel / LAC 模式）
  *
  * 流程：SCCRQ -> SCCRP -> SCCCN -> ICRQ -> ICRP -> ICCN，随后在数据通道里

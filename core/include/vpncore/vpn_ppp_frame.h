@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LicenseRef-Proprietary
+   Copyright (c) 2026 wwm-spec. All rights reserved.
+ */
+
 /* vpn_ppp_frame.h - PPP over HDLC-like 成帧（RFC 1662）
  *
  * SSTP 用它在 TLS 之上承载 PPP：0x7E 定界 + 0xFF 0x03 地址控制 + 协议 +

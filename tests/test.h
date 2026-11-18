@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LicenseRef-Proprietary
+   Copyright (c) 2026 wwm-spec. All rights reserved.
+ */
+
 /* test.h - 极简测试框架（无第三方依赖，GCC/Clang 下用 constructor 自动注册） */
 #ifndef VPN_TEST_H
 #define VPN_TEST_H

@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LicenseRef-Proprietary
+   Copyright (c) 2026 wwm-spec. All rights reserved.
+ */
+
 /* test_sstp_msg.c - SSTP 控制报文/属性编解码（MS-SSTP 2.2.2） */
 #include "test.h"
 

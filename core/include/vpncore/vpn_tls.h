@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LicenseRef-Proprietary
+   Copyright (c) 2026 wwm-spec. All rights reserved.
+ */
+
 /* vpn_tls.h - TLS 传输抽象
  *
  * 默认实现基于 OpenSSL。抽象的目的：Android 上可替换为 mbedTLS 以减小体积，

@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LicenseRef-Proprietary
+   Copyright (c) 2026 wwm-spec. All rights reserved.
+ */
+
 /* vpn_pptp.c - PPTP（RFC 2637）控制通道 + GRE 封装
  *
  * 风险提示：MPPE/PPTP 已被证明不安全，且 GRE(47) 常被运营商拦截。

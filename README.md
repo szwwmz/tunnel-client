@@ -156,6 +156,26 @@ the symptom is "GRE keeps sending, the peer never answers".
 - Unit tests do not need a real server; end-to-end testing requires a working
   SSTP/L2TP endpoint.
 
+## Third-party components
+
+The project's own code (including `core/`, `cli/`, `platform/`, `tests/` and the
+in-house generated `app.ico`) is original work. The distributed binaries contain
+or link against the following third-party components:
+
+| Component | Used by | License |
+|---|---|---|
+| Wintun 0.14.1 (`wintun.dll`, official signed amd64 build) | Windows | Wintun Prebuilt Binaries License |
+| OpenSSL 3.0.2 | Linux (dynamic), Android/Windows (static) | Apache-2.0 |
+| Android NDK / libc++ / Kotlin stdlib | Android | Apache-2.0 |
+
+Wintun is used strictly through its published API (`wintun.h`); it is not
+modified. Wintun™ is a trademark of WireGuard LLC, and this project is not
+affiliated with or endorsed by the WireGuard project. Full texts are in
+`LICENSES/` and in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md); release
+bundles carry the same notices next to the binaries (the Android app shows them
+under "About → Third-party").
+
 ## License
 
 Proprietary and confidential. All rights reserved. See [LICENSE](LICENSE).
+Third-party components remain under their own licenses as listed above.

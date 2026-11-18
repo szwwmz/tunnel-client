@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LicenseRef-Proprietary
+   Copyright (c) 2026 wwm-spec. All rights reserved.
+ */
+
 /* vpn_error.h - 统一错误码 */
 #ifndef VPN_ERROR_H
 #define VPN_ERROR_H

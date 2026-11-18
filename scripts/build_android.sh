@@ -23,8 +23,8 @@ BUILD_TOOLS="$SDK/build-tools/34.0.0"
 SSL_DIR="${OPENSSL_ANDROID_DIR:-/tmp/android-ssl}"
 APP="$ROOT/platform/android/app/src/main"
 # 与 Windows 端同一版本号（platform/windows/vpn-gui.rc 同步升）
-APK_VERSION_NAME="${APK_VERSION_NAME:-1.3.13}"
-APK_VERSION_CODE="${APK_VERSION_CODE:-143}"
+APK_VERSION_NAME="${APK_VERSION_NAME:-1.3.14}"
+APK_VERSION_CODE="${APK_VERSION_CODE:-144}"
 OUT="$ROOT/build-android"
 # 产物名带版本号，避免多个版本混在一个固定文件名里
 APK_FILE="vpn-client-android-${APK_VERSION_NAME}.apk"
@@ -61,6 +61,12 @@ if [ -d "$APP/res" ]; then
 else
     RES_ARG=()
 fi
+# assets 必须显式喂给 aapt2（-A），否则「关于 → 第三方组件」读不到许可文本
+if [ -d "$APP/assets" ]; then
+    ASSET_ARG=(-A "$APP/assets")
+else
+    ASSET_ARG=()
+fi
 "$BUILD_TOOLS/aapt2" link \
     -o "$OUT/base.apk" \
     -I "$ANDROID_JAR" \
@@ -68,6 +74,7 @@ fi
     --min-sdk-version 24 --target-sdk-version 34 \
     --version-code "$APK_VERSION_CODE" --version-name "$APK_VERSION_NAME" \
     --auto-add-overlay \
+    "${ASSET_ARG[@]}" \
     "${RES_ARG[@]}"
 
 echo "== 5/6 dex =="

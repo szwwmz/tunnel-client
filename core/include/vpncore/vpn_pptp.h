@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LicenseRef-Proprietary
+   Copyright (c) 2026 wwm-spec. All rights reserved.
+ */
+
 /* vpn_pptp.h - PPTP 兼容实现（RFC 2637，P2 优先级）
  *
  * 安全提示：PPTP 的 MPPE 已被攻破，且部分运营商封锁 GRE(47)。核心层允许实现，

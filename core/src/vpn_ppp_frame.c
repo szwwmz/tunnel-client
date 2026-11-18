@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LicenseRef-Proprietary
+   Copyright (c) 2026 wwm-spec. All rights reserved.
+ */
+
 /* vpn_ppp_frame.c - PPP over HDLC-like 成帧（RFC 1662），SSTP 用它承载 PPP */
 #include "vpncore/vpn_ppp_frame.h"
 

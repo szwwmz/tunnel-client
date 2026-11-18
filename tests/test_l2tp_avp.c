@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LicenseRef-Proprietary
+   Copyright (c) 2026 wwm-spec. All rights reserved.
+ */
+
 /* test_l2tp_avp.c - L2TPv2 控制报文与 AVP（RFC 2661 §3.1） */
 #include "test.h"
 

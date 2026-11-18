@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: LicenseRef-Proprietary
+   Copyright (c) 2026 wwm-spec. All rights reserved.
+ */
+
 /* vpn_tun.h - 虚拟网卡抽象
  *
  * 平台差异完全收敛在 vpn_tun_ops：
