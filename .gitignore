@@ -12,6 +12,11 @@
 # 分发产物（体积大，由 scripts/package_all.sh 生成并上传到 GitHub Release 附件）
 /dist/
 
+# 第三方构建资源（OpenSSL / Wintun / Android SDK / kotlinc，体积大不入库）
+# 仅保留说明文档，获取与重建方法见 third_party/README.md
+/third_party/*
+!/third_party/README.md
+
 # 日志与临时文件
 *.log
 log.*.txt

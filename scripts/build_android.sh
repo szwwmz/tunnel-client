@@ -1,26 +1,42 @@
 #!/usr/bin/env bash
 # 纯命令行构建 Android APK（不依赖 Gradle）
 #
-# 依赖：
-#   Android SDK: platform-tools / platforms;android-34 / build-tools;34.0.0 / ndk;26.1.10909125
-#   kotlinc: /opt/kotlinc
-#   OpenSSL for Android (arm64, 静态库): 默认 /tmp/android-ssl
+# 依赖（第三方资源统一固化在 third_party/，见 third_party/README.md）：
+#   third_party/android-sdk   platform-tools / platforms;android-34 /
+#                             build-tools;34.0.0 / ndk;26.1.10909125
+#   third_party/kotlinc       Kotlin 编译器
+#   third_party/openssl-android-arm64  OpenSSL (arm64, 静态库)
 #
 # 产物：dist/android/tunnel-client-android-<版本>.apk
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-SDK="${ANDROID_SDK_ROOT:-/opt/android-sdk}"
+THIRD="$ROOT/third_party"
+# 依次尝试多个候选路径，取第一个存在的
+pick_path() {
+    for p in "$@"; do [ -e "$p" ] && { printf '%s' "$p"; return 0; }; done
+    return 1
+}
+
+SDK="${ANDROID_SDK_ROOT:-}"
+[ -n "$SDK" ] || SDK="$(pick_path "$THIRD/android-sdk" /opt/android-sdk)" || {
+    echo "找不到 Android SDK：请放到 $THIRD/android-sdk 或设置 ANDROID_SDK_ROOT" >&2
+    exit 1
+}
 NDK="$SDK/ndk/26.1.10909125"
 TC="$NDK/toolchains/llvm/prebuilt/linux-x86_64"
 CC="$TC/bin/aarch64-linux-android24-clang"
-KOTLINC="${KOTLINC:-/opt/kotlinc/bin/kotlinc}"
+KOTLINC="${KOTLINC:-$THIRD/kotlinc/bin/kotlinc}"
+[ -x "$KOTLINC" ] || KOTLINC="$(pick_path /opt/kotlinc/bin/kotlinc)" || {
+    echo "找不到 kotlinc：请放到 $THIRD/kotlinc 或设置 KOTLINC" >&2
+    exit 1
+}
 # kotlinc 只是编译器，运行时要靠 stdlib；不打进 dex 就会
 # NoClassDefFoundError: kotlin/jvm/internal/Intrinsics（启动即闪退）
 KOTLIN_STDLIB="${KOTLIN_STDLIB:-$(cd "$(dirname "$KOTLINC")/../lib" && pwd)/kotlin-stdlib.jar}"
 ANDROID_JAR="$SDK/platforms/android-34/android.jar"
 BUILD_TOOLS="$SDK/build-tools/34.0.0"
-SSL_DIR="${OPENSSL_ANDROID_DIR:-/tmp/android-ssl}"
+SSL_DIR="${OPENSSL_ANDROID_DIR:-$(pick_path "$THIRD/openssl-android-arm64" /tmp/android-ssl)}"
 APP="$ROOT/platform/android/app/src/main"
 # 与 Windows 端同一版本号（platform/windows/vpn-gui.rc 同步升）
 APK_VERSION_NAME="${APK_VERSION_NAME:-1.4.0}"
