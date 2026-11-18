@@ -42,6 +42,19 @@ cd build && ctest --output-on-failure
 
 产物：`libvpncore.a`、`libvpncore.so`、`vpn-cli`、若干测试可执行文件。
 
+## 打包与发布
+
+`scripts/build_windows.sh`、`scripts/build_android.sh` 与 `scripts/package_all.sh`
+生成 `dist/tunnel-client-all-<版本>.zip`。`dist/` 不入 git，发布包以 GitHub Release
+附件形式上传：
+
+```bash
+GH_TOKEN=<具备 Contents 读写权限的 token> scripts/package_all.sh 1.4.0
+```
+
+脚本会自动创建（或复用）`v<版本>` 的 Release，并替换同名附件；`SKIP_RELEASE=1`
+可跳过上传，仅保留本地 zip。
+
 ## 使用（CLI）
 
 ```bash

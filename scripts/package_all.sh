@@ -54,19 +54,59 @@ cp -f "$ROOT/LICENSE" "$DIST/linux/LICENSE.txt"
 echo "生成: $OUT"
 ls -lh "$OUT"
 
-# 自动把顶层汇总 zip 同步到远端（只提交 dist/*.zip，明细目录仍被忽略）
-# 跳过方式：SKIP_GIT=1 scripts/package_all.sh
-if [ "${SKIP_GIT:-0}" != "1" ] && git -c safe.directory="$ROOT" -C "$ROOT" remote get-url origin >/dev/null 2>&1; then
-    REL="$(realpath --relative-to="$ROOT" "$OUT")"
-    git -c safe.directory="$ROOT" -C "$ROOT" add -f "$REL"
-    if ! git -c safe.directory="$ROOT" -C "$ROOT" diff --cached --quiet; then
-        git -c safe.directory="$ROOT" -C "$ROOT" commit -q -m "build: release bundle $(basename "$OUT")"
-        if git -c safe.directory="$ROOT" -C "$ROOT" push -q origin HEAD; then
-            echo "已同步到远端: $(basename "$OUT")"
-        else
-            echo "警告：git push 失败，请手动推送" >&2
-        fi
-    else
-        echo "产物无变化，未产生提交"
+# 上传到 GitHub Release（附件形式，不入库）
+# 需要 GH_TOKEN 或 GITHUB_TOKEN（classic: repo；fine-grained: Contents 读写）
+# 跳过方式：SKIP_RELEASE=1 scripts/package_all.sh
+upload_release() {
+    local token="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
+    local url owner repo tag api rel_id asset_id
+    url="$(git -C "$ROOT" remote get-url origin 2>/dev/null || true)"
+    [ -n "$url" ] || { echo "无 origin，跳过 Release 上传"; return 0; }
+    owner="$(printf '%s' "$url" | sed -E 's#.*[:/]([^/]+)/([^/]+?)(\.git)?$#\1#')"
+    repo="$(printf '%s' "$url"  | sed -E 's#.*[:/]([^/]+)/([^/]+?)(\.git)?$#\2#')"
+    tag="v$VER"
+    api="https://api.github.com/repos/$owner/$repo"
+
+    if [ -z "$token" ]; then
+        echo "未设置 GH_TOKEN/GITHUB_TOKEN，跳过 Release 上传（手动命令见 README）" >&2
+        return 0
     fi
+
+    # 复用同 tag 的 Release，没有则创建
+    rel_id="$(curl -sf -H "Authorization: Bearer $token" \
+        -H "Accept: application/vnd.github+json" "$api/releases/tags/$tag" \
+        | python3 -c 'import sys,json;print(json.load(sys.stdin).get("id",""))' 2>/dev/null || true)"
+    if [ -z "$rel_id" ]; then
+        rel_id="$(curl -sf -X POST -H "Authorization: Bearer $token" \
+            -H "Accept: application/vnd.github+json" \
+            -d "{\"tag_name\":\"$tag\",\"name\":\"$tag\",\"body\":\"Release $tag\",\"draft\":false,\"prerelease\":false}" \
+            "$api/releases" \
+            | python3 -c 'import sys,json;print(json.load(sys.stdin).get("id",""))' 2>/dev/null || true)"
+    fi
+    [ -n "$rel_id" ] || { echo "警告：Release 创建/获取失败（检查 token 权限）" >&2; return 1; }
+
+    # 同名附件已存在则先删除，保证可重复上传
+    asset_id="$(curl -sf -H "Authorization: Bearer $token" \
+        -H "Accept: application/vnd.github+json" "$api/releases/$rel_id/assets" \
+        | NAME="$(basename "$OUT")" python3 -c 'import sys,json,os;print(next((a["id"] for a in json.load(sys.stdin) if a["name"]==os.environ["NAME"]),""))' 2>/dev/null || true)"
+    if [ -n "$asset_id" ]; then
+        curl -sf -X DELETE -H "Authorization: Bearer $token" \
+            -H "Accept: application/vnd.github+json" "$api/releases/assets/$asset_id" >/dev/null || true
+    fi
+
+    if curl -sf -X POST -H "Authorization: Bearer $token" \
+        -H "Accept: application/vnd.github+json" \
+        -H "Content-Type: application/zip" \
+        --data-binary "@$OUT" \
+        "https://uploads.github.com/repos/$owner/$repo/releases/$rel_id/assets?name=$(basename "$OUT")" >/dev/null; then
+        echo "已上传 Release 附件: $tag / $(basename "$OUT")"
+        echo "https://github.com/$owner/$repo/releases/tag/$tag"
+    else
+        echo "警告：Release 附件上传失败" >&2
+        return 1
+    fi
+}
+
+if [ "${SKIP_RELEASE:-0}" != "1" ]; then
+    upload_release || true
 fi
