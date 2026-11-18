@@ -29,7 +29,10 @@ extern "C" {
 typedef struct vpn_ipsec vpn_ipsec;
 
 typedef struct {
-    char     host[64];      /* 服务器 IPv4 点分串（上层负责解析域名） */
+    /* 服务器地址或域名：长度与 VPN_HOST_LEN 一致，避免上层按域名拷贝时
+     * 被 snprintf 静默截断（截断后 IKE 会连到错误主机且很难排查）。
+     * 域名解析由 net 层（getaddrinfo）完成，这里不必先转成点分串。 */
+    char     host[256];
     uint16_t port;          /* IKE 端口，0 = 500 */
     char     psk[128];      /* 预共享密钥 */
     char     local_id[64];  /* 本地 ID（空 = 按出口地址自动取） */

@@ -68,8 +68,11 @@ int vpn_sstp_build_attr(uint8_t *out, size_t cap, uint8_t attr_id,
     out[1] = attr_id;         /* Attribute ID */
     /* Length 必须包含 4 字节属性头本身（MS-SSTP 2.2.1） */
     vpn_put_be16(out + 2, (uint16_t)(4 + value_len));
+    /* 调用方可能原地构造：value 就指向 out + 4（CALL_CONNECTED 的 Encap
+     * 属性就是这么写的），此时 memcpy 的源和目标完全重叠，属于未定义行为，
+     * gcc 会报 -Wrestrict。memmove 对重叠区域有定义，用在这里零开销。 */
     if (value_len && value)
-        memcpy(out + 4, value, value_len);
+        memmove(out + 4, value, value_len);
     return (int)(4 + value_len);
 }
 
