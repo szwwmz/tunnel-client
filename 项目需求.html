@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>跨平台 VPN 客户端开发方案 · Android & Windows</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', 'Noto Sans', sans-serif;
+            background: #f5f7fc;
+            color: #1e293b;
+            line-height: 1.6;
+            padding: 2rem 1rem;
+        }
+        .container {
+            max-width: 1280px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 28px;
+            box-shadow: 0 20px 35px -8px rgba(0, 0, 0, 0.1), 0 10px 15px -6px rgba(0, 0, 0, 0.05);
+            padding: 2.5rem 2.2rem;
+        }
+
+        /* 标题 */
+        h1 {
+            font-size: 2.2rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: #0f172a;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-left: 8px solid #3b82f6;
+            padding-left: 1.2rem;
+            margin-bottom: 0.5rem;
+            line-height: 1.3;
+        }
+        .subhead {
+            font-size: 1.05rem;
+            color: #475569;
+            margin-bottom: 2rem;
+            padding-left: 2rem;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 1.2rem;
+        }
+
+        h2 {
+            font-size: 1.6rem;
+            font-weight: 600;
+            margin: 2.2rem 0 1rem 0;
+            color: #0f172a;
+            letter-spacing: -0.01em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        h2::before {
+            content: '';
+            width: 6px;
+            height: 26px;
+            background: #3b82f6;
+            border-radius: 8px;
+            display: inline-block;
+        }
+
+        h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin: 1.5rem 0 0.8rem 0;
+            color: #1e293b;
+            padding-left: 0.3rem;
+        }
+
+        /* 卡片/高亮框 */
+        .highlight {
+            background: #f0f9ff;
+            border-left: 5px solid #3b82f6;
+            border-radius: 12px;
+            padding: 1.4rem 1.8rem;
+            margin: 1.4rem 0;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+        }
+        .warning {
+            background: #fef9e7;
+            border-left: 5px solid #f59e0b;
+            border-radius: 12px;
+            padding: 1.2rem 1.8rem;
+            margin: 1.4rem 0;
+        }
+        .danger {
+            background: #fef2f2;
+            border-left: 5px solid #ef4444;
+            border-radius: 12px;
+            padding: 1rem 1.5rem;
+            margin: 1rem 0;
+            font-size: 0.95rem;
+        }
+        .success {
+            background: #ecfdf5;
+            border-left: 5px solid #10b981;
+            border-radius: 12px;
+            padding: 1rem 1.5rem;
+            margin: 1rem 0;
+        }
+
+        /* 表格 */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.6rem 0;
+            font-size: 0.95rem;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+        th {
+            background: #f1f5f9;
+            text-align: left;
+            padding: 0.9rem 1.2rem;
+            font-weight: 600;
+            color: #0f172a;
+            border-bottom: 2px solid #e2e8f0;
+            font-size: 0.92rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+        td {
+            padding: 0.9rem 1.2rem;
+            border-bottom: 1px solid #e2e8f0;
+            vertical-align: top;
+        }
+        tr:last-child td {
+            border-bottom: none;
+        }
+        tr:hover td {
+            background-color: #fafcff;
+        }
+
+        /* 代码块 */
+        pre {
+            background: #0b1120;
+            color: #e2e8f0;
+            border-radius: 16px;
+            padding: 1.4rem 1.8rem;
+            overflow-x: auto;
+            font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+            font-size: 0.88rem;
+            line-height: 1.5;
+            margin: 1.5rem 0;
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+        }
+
+        /* 徽章/标签 */
+        .badge {
+            display: inline-block;
+            background: #e2e8f0;
+            color: #1e293b;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.2rem 0.7rem;
+            border-radius: 30px;
+            letter-spacing: 0.02em;
+            margin-left: 8px;
+            text-transform: uppercase;
+            vertical-align: middle;
+        }
+        .badge-p0 { background: #fee2e2; color: #b91c1c; }
+        .badge-p1 { background: #fef3c7; color: #b45309; }
+        .badge-p2 { background: #e0e7ff; color: #4338ca; }
+        .badge-port { background: #dbeafe; color: #1e40af; }
+
+        /* 列表 */
+        ul, ol {
+            padding-left: 1.8rem;
+            margin: 0.8rem 0;
+        }
+        li {
+            margin: 0.5rem 0;
+        }
+        li strong {
+            color: #0f172a;
+        }
+
+        /* 网格布局 */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin: 1.5rem 0;
+        }
+        .card {
+            background: #f8fafc;
+            border-radius: 20px;
+            padding: 1.5rem 1.6rem;
+            border: 1px solid #e2e8f0;
+            transition: all 0.1s ease;
+        }
+        .card:hover {
+            border-color: #cbd5e1;
+            background: #ffffff;
+            box-shadow: 0 8px 16px -8px rgba(0, 0, 0, 0.06);
+        }
+        .card h4 {
+            font-size: 1.15rem;
+            font-weight: 600;
+            margin-bottom: 0.8rem;
+            color: #0f172a;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* 架构图 (简易ASCII风格) */
+        .arch-diagram {
+            background: #0b1120;
+            color: #b9c7da;
+            padding: 1.8rem;
+            border-radius: 20px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82rem;
+            line-height: 1.45;
+            white-space: pre;
+            overflow-x: auto;
+            margin: 1.8rem 0;
+            box-shadow: 0 8px 12px -6px rgba(0, 0, 0, 0.2);
+        }
+        .arch-diagram .accent { color: #7aa2f7; }
+        .arch-diagram .green { color: #9ece6a; }
+        .arch-diagram .purple { color: #bb9af7; }
+
+        /* 分割线 */
+        .divider {
+            height: 1px;
+            background: linear-gradient(to right, transparent, #cbd5e1, transparent);
+            margin: 2.2rem 0 0.8rem 0;
+        }
+
+        /* 响应式 */
+        @media (max-width: 720px) {
+            .container { padding: 1.5rem; }
+            h1 { font-size: 1.7rem; }
+            .grid-2 { grid-template-columns: 1fr; }
+            table { font-size: 0.85rem; }
+            th, td { padding: 0.7rem 0.8rem; }
+        }
+
+        /* 打印样式 */
+        @media print {
+            body { background: white; padding: 0; }
+            .container { box-shadow: none; padding: 0; }
+            .card { break-inside: avoid; }
+            .arch-diagram { background: #f1f5f9; color: #1e293b; }
+        }
+
+        /* 小图标模拟 */
+        .icon {
+            display: inline-block;
+            width: 20px;
+            text-align: center;
+        }
+        .note {
+            font-size: 0.9rem;
+            color: #64748b;
+            font-style: italic;
+            margin-top: 0.3rem;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>
+        <span>🔐 跨平台 VPN 客户端开发方案</span>
+    </h1>
+    <div class="subhead">
+        Android &amp; Windows · 支持 SSTP / L2TP/IPsec / PPTP · 对接 MikroTik RouterOS
+    </div>
+
+    <!-- 1. 概述与协议策略 -->
+    <h2>1. 方案概述与协议策略</h2>
+    <p>本方案面向 <strong>Android 与 Windows</strong> 双平台客户端，目标服务器为 MikroTik RouterOS。核心设计原则：<strong>共享协议逻辑，分离平台适配层</strong>，确保证书验证策略、端口配置、连接行为在两个平台上完全一致。</p>
+
+    <div class="highlight">
+        <strong>📌 关于 SSTP 证书验证与端口</strong><br>
+        • MikroTik 的 SSTP 服务端支持自定义 <code>port</code>（默认 443），客户端必须允许配置端口。<br>
+        • 证书验证策略建议：默认开启验证（导入 CA 或使用商业证书），并提供“忽略证书验证”高级选项并附风险提示。<br>
+        • 自定义端口时，SSTP 穿透性可能下降，UI 可做轻量提示。
+    </div>
+
+    <h3>1.1 协议优先级</h3>
+    <table>
+        <thead>
+            <tr><th>协议</th><th>优先级</th><th>理由</th><th>端口</th></tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>SSTP</strong></td>
+                <td><span class="badge badge-p0">P0 · 首要</span></td>
+                <td>基于 TLS/443，穿透防火墙强；MikroTik 配置简单；可自定义端口；双平台行为可控</td>
+                <td>默认 443，<span class="badge badge-port">可配置</span></td>
+            </tr>
+            <tr>
+                <td><strong>L2TP/IPsec</strong></td>
+                <td><span class="badge badge-p1">P1</span></td>
+                <td>MikroTik 常用协议，但 IKE 协商复杂；可借助 strongSwan 等库降低复杂度</td>
+                <td>UDP 1701（IPsec NAT-T 可自定义）</td>
+            </tr>
+            <tr>
+                <td><strong>PPTP</strong></td>
+                <td><span class="badge badge-p2">P2 · 兼容</span></td>
+                <td>官方已标注“不推荐”，安全缺陷明显；仅用于旧设备兼容，UI 需标注风险</td>
+                <td>TCP 1723</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- 2. 整体架构 -->
+    <h2>2. 整体架构设计</h2>
+    <p>推荐采用 <strong>C/C++ 共享核心 + 平台外壳</strong> 的架构。两个平台的最大差异在于虚拟网卡和生命周期管理，协议协商与加密逻辑完全共享。</p>
+
+    <div class="arch-diagram">
+<pre>
+┌─────────────────────────────────────────────────────────────┐
+│                      平台外壳层                              │
+│  ┌─────────────────────┐    ┌─────────────────────────┐    │
+│  │   Android (Kotlin)  │    │   Windows (C# / C++)    │    │
+│  │   VpnService        │    │   Wintun TUN 驱动        │    │
+│  │   JNI 桥接          │    │   P/Invoke 或 C++ 直接   │    │
+│  └─────────┬───────────┘    └───────────┬─────────────┘    │
+│            │                            │                   │
+├────────────┼────────────────────────────┼───────────────────┤
+│            ▼                            ▼                   │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │              共享核心层 (C / C++)                     │   │
+│  │  ┌─────────┐  ┌─────────┐  ┌─────────────────────┐  │   │
+│  │  │ PPP 栈  │  │ SSTP    │  │ L2TP 控制           │  │   │
+│  │  │(LCP/CHAP│  │ 协议    │  │ (SCCRQ/SCCCN)       │  │   │
+│  │  │ /IPCP)  │  │         │  │                     │  │   │
+│  │  └─────────┘  └─────────┘  └─────────────────────┘  │   │
+│  │  ┌─────────────────────────────────────────────┐    │   │
+│  │  │  加密层：OpenSSL / mbedTLS (SSTP)           │    │   │
+│  │  │           strongSwan libipsec (L2TP/IPsec)  │    │   │
+│  │  └─────────────────────────────────────────────┘    │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+</pre>
+    </div>
+
+    <div class="grid-2">
+        <div class="card">
+            <h4>📦 共享核心层优势</h4>
+            <ul>
+                <li>SSTP 本质是“TLS 上的 PPP”，L2TP 是“UDP 上的 PPP”。两者最终汇聚到同一个 PPP 状态机。</li>
+                <li>用 C 实现一次 PPP（LCP / MS-CHAPv2 / IPCP），Android 与 Windows 共用，保证认证行为完全一致。</li>
+                <li>证书验证、端口配置、加密套件协商统一，避免平台差异。</li>
+            </ul>
+        </div>
+        <div class="card">
+            <h4>⚙️ 平台适配层职责</h4>
+            <ul>
+                <li><strong>Android</strong>：VpnService 获取 TUN fd，JNI 传入核心层；前台服务保活；Always-On 支持。</li>
+                <li><strong>Windows</strong>：Wintun 驱动创建虚拟网卡；服务模式运行；路由表配置；证书存储管理（自实现路线无需修改系统信任库）。</li>
+            </ul>
+        </div>
+    </div>
+
+    <h3>2.1 协议栈选型参考</h3>
+    <table>
+        <thead><tr><th>组件</th><th>推荐方案</th><th>说明</th></tr></thead>
+        <tbody>
+            <tr><td>PPP 栈</td><td>裁剪版 pppd 或自行实现</td><td>核心是 LCP / CHAP / IPCP，代码量可控</td></tr>
+            <tr><td>SSTP 控制</td><td>参考开源 sstp-client</td><td>处理 CALL_CONNECT_REQUEST 等控制报文</td></tr>
+            <tr><td>TLS</td><td>OpenSSL 或 mbedTLS</td><td>支持自定义证书验证回调</td></tr>
+            <tr><td>IPsec（L2TP）</td><td>strongSwan libipsec + charon 裁剪</td><td>IKEv1 协商复杂度高，不建议手写</td></tr>
+            <tr><td>L2TP 控制</td><td>自行实现（RFC 2661）</td><td>SCCRQ / SCCRP / SCCCN 等报文相对简单</td></tr>
+        </tbody>
+    </table>
+
+    <!-- 3. Android 方案 -->
+    <h2>3. Android 客户端方案</h2>
+
+    <h3>3.1 VpnService 集成要点</h3>
+    <ul>
+        <li>继承 <code>VpnService</code>，在 <code>AndroidManifest.xml</code> 声明 <code>BIND_VPN_SERVICE</code> 权限。</li>
+        <li>调用 <code>VpnService.prepare()</code> 获取用户授权。</li>
+        <li>通过 <code>VpnService.Builder</code> 配置 TUN IP、路由、DNS。支持全局路由 <code>0.0.0.0/0</code> 或分流网段。</li>
+        <li><code>establish()</code> 获得 <code>ParcelFileDescriptor</code>，将其 fd 传递至 Native 层。</li>
+        <li><strong>Android 10+ 后台限制</strong>：必须调用 <code>startForeground()</code> 并绑定不可关闭的通知。</li>
+    </ul>
+
+    <h3>3.2 协议实现路径</h3>
+    <div class="grid-2">
+        <div class="card">
+            <h4>🔒 SSTP（首要）</h4>
+            <ul>
+                <li>OpenSSL 建立 TLS 连接，目标地址为 <strong>配置中的服务器地址:端口</strong>（默认 443）。</li>
+                <li>证书验证：默认系统 CA + 用户导入的 CA；高级选项可设为“不验证”。</li>
+                <li>TLS 建立后发送 SSTP 控制报文，启动 PPP 协商。</li>
+                <li>MikroTik SSTP 通常要求 <strong>MS-CHAPv2</strong> 认证。</li>
+            </ul>
+        </div>
+        <div class="card">
+            <h4>🛡️ L2TP/IPsec</h4>
+            <ul>
+                <li>集成 strongSwan Android 库处理 IKEv1 协商（PSK 认证）。</li>
+                <li>IPsec 隧道建立后，通过 UDP 1701 发送 L2TP 控制包。</li>
+                <li>随后运行 PPP 协商（与 SSTP 共用 PPP 栈）。</li>
+                <li>MikroTik 需配置 <code>use-ipsec=yes</code> 及预共享密钥。</li>
+            </ul>
+        </div>
+    </div>
+
+    <h3>3.3 后台保活与 Always-On</h3>
+    <p>利用 Android 7.0+ 的 Always-On VPN 特性：用户在系统设置中开启后，VPN 服务会在设备启动时自动启动，并在断开时显示不可关闭的通知。应用层配合 <code>ConnectivityManager.NetworkCallback</code> 监听网络切换，触发重连。</p>
+
+    <!-- 4. Windows 方案 -->
+    <h2>4. Windows 客户端方案</h2>
+
+    <div class="warning">
+        <strong>⚠️ 关于系统 RAS 路线</strong><br>
+        Windows 原生 SSTP 客户端<strong>强制验证服务器证书</strong>，无法在代码中跳过。若 MikroTik 使用自签名证书，必须通过安装程序导入到“受信任的根证书颁发机构”存储。且 RAS 无法精细控制 PPP 参数。<br>
+        <strong>本方案推荐：自实现协议栈 + Wintun 驱动</strong>，与 Android 保持行为一致。
+    </div>
+
+    <h3>4.1 推荐路线：自实现协议栈 + Wintun</h3>
+    <ul>
+        <li>使用 <strong>Wintun</strong>（WireGuard 项目开源 TUN 驱动）创建虚拟网卡，性能好、许可证宽松。</li>
+        <li>共享核心层负责 PPP / SSTP / L2TP 协议，将 IP 包封装后发往 MikroTik。</li>
+        <li>证书验证策略与 Android 完全一致：默认验证，可选忽略。</li>
+        <li>路由配置通过 Windows API（<code>CreateIpForwardEntry</code> 或 <code>netsh</code>）将目标网段指向 TUN 接口网关。</li>
+        <li>建议将 VPN 连接逻辑放在 <strong>Windows 服务</strong>中运行，支持开机自动连接、网络切换恢复；UI 通过命名管道或 gRPC 与服务通信。</li>
+    </ul>
+
+    <h3>4.2 备选路线：调用系统 RAS API（快速但受限）</h3>
+    <p>如果项目时间紧迫且不要求证书忽略功能，可使用 <code>RasSetEntryProperties</code> + <code>RasDial</code> 创建和拨号 VPN 连接。支持 SSTP / L2TP / PPTP 类型，可传入服务器地址、用户名、密码、PSK。</p>
+    <p><strong>局限</strong>：SSTP 证书验证由系统控制，自签名证书必须导入信任库；无法自定义 PPP 协商参数。仅建议在“商业 CA 证书 + 无特殊协议需求”场景下使用。</p>
+
+    <!-- 5. 功能清单 -->
+    <h2>5. 常规功能清单（跨平台统一）</h2>
+    <table>
+        <thead><tr><th>功能</th><th>Android 实现要点</th><th>Windows 实现要点</th></tr></thead>
+        <tbody>
+            <tr><td><strong>多配置管理</strong></td><td>Room 数据库存储服务器配置</td><td>SQLite 或 JSON 配置文件</td></tr>
+            <tr><td><strong>自定义端口</strong></td><td>配置界面端口字段可编辑，默认 443</td><td>同左；SSTP 地址格式支持 <code>host:port</code></td></tr>
+            <tr><td><strong>分流路由</strong></td><td><code>Builder.addRoute</code> 按目标网段</td><td>路由表条目指向 TUN 接口</td></tr>
+            <tr><td><strong>DNS 覆盖</strong></td><td><code>Builder.addDnsServer</code></td><td>修改 TUN 接口 DNS 或 hosts</td></tr>
+            <tr><td><strong>断线重连</strong></td><td><code>ConnectivityManager</code> 监听网络变化</td><td>服务内 NetworkChange 事件</td></tr>
+            <tr><td><strong>Always-On</strong></td><td>系统 Always-On VPN 设置 + 前台服务</td><td>服务自启动 + 连接恢复</td></tr>
+            <tr><td><strong>日志诊断</strong></td><td>前台通知 + 应用内日志页</td><td>服务日志文件 + UI 查看器</td></tr>
+            <tr><td><strong>证书管理</strong></td><td>导入 CA 到应用私有存储；可忽略选项（附风险提示）</td><td>自实现路线同左；RAS 路线需安装程序导入系统信任库</td></tr>
+            <tr><td><strong>PPTP 风险提示</strong></td><td>连接前弹窗警告</td><td>同左</td></tr>
+        </tbody>
+    </table>
+
+    <!-- 6. 排期建议 -->
+    <h2>6. 开发排期建议</h2>
+    <table>
+        <thead><tr><th>阶段</th><th>内容</th><th>周期</th></tr></thead>
+        <tbody>
+            <tr><td><strong>第一阶段</strong></td><td>SSTP 核心 + Android 原型：PPP 栈、SSTP 控制、VpnService 集成、证书验证与忽略两种模式</td><td>4–6 周</td></tr>
+            <tr><td><strong>第二阶段</strong></td><td>Windows 客户端 SSTP：复用核心库、Wintun 集成、服务封装、证书管理</td><td>3–4 周</td></tr>
+            <tr><td><strong>第三阶段</strong></td><td>L2TP/IPsec：集成 strongSwan libipsec，实现 L2TP 控制层，双平台测试 MikroTik use-ipsec 场景</td><td>4–6 周</td></tr>
+            <tr><td><strong>第四阶段</strong></td><td>PPTP 兼容 + 打磨：用户态 PPTP 实现（可选）、分流/DNS/多配置完善、全平台回归测试</td><td>2–3 周</td></tr>
+        </tbody>
+    </table>
+
+    <!-- 7. 风险 -->
+    <h2>7. 关键风险与应对</h2>
+    <table>
+        <thead><tr><th>风险</th><th>应对措施</th></tr></thead>
+        <tbody>
+            <tr><td><strong>SSTP 证书验证策略不一致</strong></td><td>坚持自实现协议栈，双平台使用同一套 C 代码做证书验证，UI 开关同步</td></tr>
+            <tr><td><strong>MikroTik 加密算法协商失败</strong></td><td>在测试环境穷举 MikroTik 支持的加密套件（AES-128/256 等），核心层记录协商日志便于排查</td></tr>
+            <tr><td><strong>自定义端口影响穿透性</strong></td><td>UI 端口输入框旁提示“非 443 端口可能降低防火墙穿透性”</td></tr>
+            <tr><td><strong>Android 后台被杀</strong></td><td>Always-On + 前台服务 + 厂商白名单引导（国产 ROM 需额外适配）</td></tr>
+            <tr><td><strong>Windows RAS 证书不可控</strong></td><td>若选 RAS 路线，安装程序处理 CA 导入；否则走自实现路线</td></tr>
+            <tr><td><strong>PPTP 被运营商封锁 GRE</strong></td><td>UI 明确提示：PPTP 在移动网络下可能无法连接，建议使用 SSTP</td></tr>
+        </tbody>
+    </table>
+
+    <!-- 8. 附录修订说明 -->
+    <div class="divider"></div>
+    <h2>8. 方案修订说明（相对上一版）</h2>
+    <ul>
+        <li><strong>明确 SSTP 端口可配置</strong>：MikroTik 服务端支持自定义 port，客户端配置界面必须允许修改，默认 443。</li>
+        <li><strong>核心层连接参数化</strong>：TLS 连接目标使用配置中的端口，不硬编码。</li>
+        <li><strong>Windows 自实现路线</strong>：同样使用共享核心层的端口参数，无额外适配。</li>
+        <li><strong>UI 提示</strong>：非 443 端口可能影响穿透性，在端口输入框旁添加轻量提示。</li>
+        <li><strong>证书验证策略</strong>：默认开启验证，提供“忽略证书验证”高级选项并附风险提示，跨平台行为一致。</li>
+    </ul>
+
+    <div class="success" style="margin-top: 2rem;">
+        <strong>✅ 方案核心决策</strong><br>
+        用 C/C++ 实现共享的 PPP + SSTP 协议栈，两个平台各自负责 TUN 网卡和连接生命周期。这保证证书验证策略完全可控且双平台一致，同时避免 Windows RAS 路线的证书不可绕过问题。SSTP 作为首要协议，L2TP/IPsec 次之，PPTP 仅作兼容并标注风险。端口自定义作为标准配置项贯穿所有协议。
+    </div>
+
+</div>
+</body>
+</html>
