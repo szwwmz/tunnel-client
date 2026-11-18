@@ -24,7 +24,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#define CLI_VERSION "1.3.16"
+#define CLI_VERSION "1.4.0"
 
 static volatile sig_atomic_t g_stop;
 

@@ -18,7 +18,7 @@ import java.util.Locale
 object L {
 
     /** 作者，界面上"关于"和底部都会显示 */
-    const val AUTHOR = "wwme@163.com"
+    const val AUTHOR = "wwm <wwme@163.com>"
 
     val zh: Boolean
         get() = Locale.getDefault().language.startsWith("zh")

@@ -32,16 +32,42 @@
 #include "vpncore/vpn_net.h"
 
 #define APP_NAME_W    L"VPN 客户端"
-#define APP_VERSION_W L"1.3.0"
-#define APP_AUTHOR_W  L"wwme@163.com"
-#define APP_TITLE_W   L"VPN 客户端 v" APP_VERSION_W L" - SSTP / L2TP / PPTP"
-#define APP_TITLE     APP_TITLE_W
+#define APP_VERSION_W L"1.4.0"
+#define APP_AUTHOR_W  L"wwm"
+#define APP_MAIL_W    L"wwme@163.com"
 #define APP_CLASS_W   L"VpnClientWnd"
 
-/* 版本说明（托盘右键“版本说明”弹出） */
-#define ABOUT_TEXT \
+/* ---------------- 多语言 ----------------
+ * 界面文案走 STR_TAB（[字符串 ID][语言]），运行期 g_lang 决定取哪一列。
+ * 连接日志不在此列：日志统一英文（与 core 一致），避免同一份日志混两种语言。 */
+enum { LANG_ZH = 0, LANG_EN = 1 };
+static int g_lang = LANG_ZH;
+
+enum {
+    S_APP_NAME, S_ABOUT_TITLE, S_ABOUT,
+    S_PROTO, S_SERVER, S_PORT, S_USER, S_PASS, S_CERT, S_CERT_VERIFY, S_CERT_IGNORE,
+    S_ROUTE_ALL, S_ROUTE_PRIV, S_BTN_CONNECT, S_BTN_DISCONNECT,
+    S_LOG_TITLE, S_LOG_HINT, S_LOG_CLEAR, S_LOG_COPY,
+    S_BANNER_META, S_FOOTER, S_CARD_NOTE,
+    S_TRAY_SHOW, S_TRAY_CONNECT, S_TRAY_DISCONNECT, S_TRAY_ABOUT, S_TRAY_EXIT,
+    S_LANG_MENU, S_LANG_ZH, S_LANG_EN,
+    S_ST_CONNECTING, S_ST_AUTH, S_ST_CONNECTED, S_ST_RECONNECTING,
+    S_ST_DISCONNECTED, S_ST_FAILED, S_ST_IDLE,
+    S_MSG_NEED_HOST, S_MSG_TITLE, S_CLOSE_TITLE, S_CLOSE_BODY,
+    S_COUNT
+};
+
+/* 版本说明：中文保留完整历史，英文只列当前版本要点（历史全文见中文版） */
+#define ABOUT_ZH_TEXT \
     L"VPN 客户端 v" APP_VERSION_W L"\n" \
-    L"作者：" APP_AUTHOR_W L"      协议：SSTP / L2TP / PPTP\n" \
+    L"作者：wwm      联系：wwme@163.com      协议：SSTP / L2TP / PPTP\n" \
+    L"\n" \
+    L"v1.4.0\n" \
+    L"  · Windows 界面支持中英双语：点标题栏右上角「中文 / EN」或托盘菜单\n" \
+    L"    随时切换，选择写入 vpn-gui.ini（lang=zh|en），下次启动保持\n" \
+    L"  · 连接日志、错误提示统一为英文，便于检索与上报\n" \
+    L"  · 修复 CALL_CONNECTED 原地构造时 memcpy 源目标重叠（未定义行为）\n" \
+    L"  · 修复 L2TP/IPsec 长域名被静默截断（IKE host 64 -> 256 字节）\n" \
     L"\n" \
     L"v1.3.0\n" \
     L"  · 版本号与 Android / Linux 对齐，三平台同一版本\n" \
@@ -83,6 +109,87 @@
     L"  · SSTP 客户端（MS-CHAPv2 + Crypto-Binding + IPCP + Wintun 转发）\n" \
     L"  · L2TP / PPTP 基础支持，DNS 由服务器下发并写入网卡"
 
+#define ABOUT_EN_TEXT \
+    L"VPN Client v" APP_VERSION_W L"\n" \
+    L"Author: wwm      Contact: wwme@163.com      Protocols: SSTP / L2TP / PPTP\n" \
+    L"\n" \
+    L"v1.4.0\n" \
+    L"  - Bilingual UI (Chinese/English): switch from the banner chip in the\n" \
+    L"    top-right corner or the tray menu; the choice is saved to\n" \
+    L"    vpn-gui.ini (lang=zh|en) and restored on next start\n" \
+    L"  - Connection logs and error messages are now English-only\n" \
+    L"  - Fixed undefined behaviour (in-place memcpy overlap) when building\n" \
+    L"    CALL_CONNECTED\n" \
+    L"  - Fixed silent truncation of L2TP/IPsec host names longer than 63\n" \
+    L"    characters (IKE host field 64 -> 256 bytes)\n" \
+    L"\n" \
+    L"Older entries are listed in the Chinese release notes."
+
+static const wchar_t *const STR_TAB[S_COUNT][2] = {
+    [S_APP_NAME]        = { L"VPN 客户端", L"VPN Client" },
+    [S_ABOUT_TITLE]     = { L"版本说明", L"Release notes" },
+    [S_ABOUT]           = { ABOUT_ZH_TEXT, ABOUT_EN_TEXT },
+    [S_PROTO]           = { L"协议", L"Protocol" },
+    [S_SERVER]          = { L"服务器", L"Server" },
+    [S_PORT]            = { L"端口", L"Port" },
+    [S_USER]            = { L"用户名", L"User" },
+    [S_PASS]            = { L"密码", L"Password" },
+    [S_CERT]            = { L"证书", L"Cert" },
+    [S_CERT_VERIFY]     = { L"校验", L"Verify" },
+    [S_CERT_IGNORE]     = { L"忽略", L"Ignore" },
+    [S_ROUTE_ALL]       = { L"接管全部流量", L"Route all traffic" },
+    [S_ROUTE_PRIV]      = { L"接管私有网段", L"Route private ranges" },
+    [S_BTN_CONNECT]     = { L"连接", L"Connect" },
+    [S_BTN_DISCONNECT]  = { L"断开", L"Disconnect" },
+    [S_LOG_TITLE]       = { L"运行日志", L"Log" },
+    [S_LOG_HINT]        = { L"同步写入 exe 目录 vpn-gui.log", L"also written to vpn-gui.log next to the exe" },
+    [S_LOG_CLEAR]       = { L"清除日志", L"Clear log" },
+    [S_LOG_COPY]        = { L"复制全部", L"Copy all" },
+    [S_CARD_NOTE]       = { L"私有网段：10.0.0.0/8、172.16.0.0/12、192.168.0.0/16"
+                            L"    ·    优先级低于本机既有路由，不影响本地网络互访",
+                            L"Private ranges 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16"
+                            L"    ·    lower priority than existing routes, LAN access unaffected" },
+    [S_BANNER_META]     = { L"SSTP / L2TP / PPTP      v%ls      作者 %ls",
+                            L"SSTP / L2TP / PPTP      v%ls      by %ls" },
+    [S_FOOTER]          = { L"VPN 客户端 v%ls    ·    作者 %ls <" APP_MAIL_W L">",
+                            L"VPN Client v%ls    ·    by %ls <" APP_MAIL_W L">" },
+    [S_TRAY_SHOW]       = { L"显示主界面", L"Show window" },
+    [S_TRAY_CONNECT]    = { L"连接", L"Connect" },
+    [S_TRAY_DISCONNECT] = { L"断开", L"Disconnect" },
+    [S_TRAY_ABOUT]      = { L"版本说明", L"Release notes" },
+    [S_TRAY_EXIT]       = { L"退出", L"Exit" },
+    [S_LANG_MENU]       = { L"语言 / Language", L"Language / 语言" },
+    [S_LANG_ZH]         = { L"中文", L"中文 (Chinese)" },
+    [S_LANG_EN]         = { L"English", L"English" },
+    [S_ST_CONNECTING]   = { L"连接中", L"Connecting" },
+    [S_ST_AUTH]         = { L"认证中", L"Authenticating" },
+    [S_ST_CONNECTED]    = { L"已连接", L"Connected" },
+    [S_ST_RECONNECTING] = { L"重连中", L"Reconnecting" },
+    [S_ST_DISCONNECTED] = { L"已断开", L"Disconnected" },
+    [S_ST_FAILED]       = { L"连接失败", L"Failed" },
+    [S_ST_IDLE]         = { L"未连接", L"Not connected" },
+    [S_MSG_NEED_HOST]   = { L"请填写服务器地址", L"Please enter the server address" },
+    [S_MSG_TITLE]       = { L"提示", L"Notice" },
+    [S_CLOSE_TITLE]     = { L"VPN 客户端仍在运行", L"VPN client is still running" },
+    [S_CLOSE_BODY]      = { L"已最小化到托盘，双击图标可恢复窗口；托盘菜单可退出。",
+                            L"Minimized to the tray. Double-click the icon to restore it; use the tray menu to exit." },
+};
+
+#define T(id) (STR_TAB[(id)][g_lang])
+
+/* 统计行用窄字符格式化，避免多一次宽窄转换 */
+static const char *stat_ip_fmt(void)
+{
+    return g_lang == LANG_EN ? "IP  %s      GW  %s      DNS  %s"
+                             : "IP  %s      网关  %s      DNS  %s";
+}
+
+static const char *stat_traffic_fmt(void)
+{
+    return g_lang == LANG_EN ? "RX %.1f KB    TX %.1f KB    reconnects %lu"
+                             : "收 %.1f KB    发 %.1f KB    重连 %lu";
+}
+
 #define IDC_PROTO      1001
 #define IDC_HOST       1002
 #define IDC_PORT       1003
@@ -101,6 +208,8 @@
 #define IDM_DISCONNECT 2003
 #define IDM_EXIT       2004
 #define IDM_ABOUT      2005
+#define IDM_LANG_ZH    2006
+#define IDM_LANG_EN    2007
 #define IDM_LOG_CLEAR  2010
 #define IDM_LOG_COPY   2011
 
@@ -163,10 +272,21 @@ typedef struct {
 static gui_btn g_btn_conn, g_btn_disc;
 static int g_hover = -1, g_press = -1;
 
-/* 自绘状态 */
-static wchar_t g_status_text[512] = L"未连接";
-static wchar_t g_stat_line[512] = L"IP  -      网关  -      DNS  -";
-static wchar_t g_stat2_line[512] = L"收 0.0 KB    发 0.0 KB    重连 0";
+/* 自绘状态（初值由 lang_apply() 按当前语言填入） */
+static wchar_t g_status_text[512] = L"";
+static wchar_t g_stat_line[512] = L"";
+static wchar_t g_stat2_line[512] = L"";
+
+/* 语言切换：标题栏右上角两枚胶囊的热区，draw_banner() 负责更新 */
+static RECT g_lang_zh_rc = { 660, 50, 706, 72 };
+static RECT g_lang_en_rc = { 712, 50, 758, 72 };
+
+/* 需要跟随语言切换的静态文本控件（标签），on_create 里登记 */
+#define MAX_LABELS 12
+static struct { HWND h; int id; } g_labels[MAX_LABELS];
+static int g_label_n;
+
+static void lang_apply(void);
 
 /* 自绘输入框底纹（控件本身无边框），记录矩形供 WM_PAINT 使用 */
 #define MAX_FIELDS 8
@@ -222,7 +342,7 @@ static void log_file_open(void)
     snprintf(path, sizeof(path), "%svpn-gui.log", dir);
     g_flog = fopen(path, "a");
     if (g_flog)
-        fprintf(g_flog, "===== 启动 =====\n");
+        fprintf(g_flog, "===== start =====\n");
 }
 
 static void log_fmt(const char *fmt, ...)
@@ -262,15 +382,16 @@ static void on_log(int level, const char *msg, void *user)
     /* 必须与 vpn_log_level 枚举顺序一致（0=TRACE 1=DEBUG 2=INFO
      * 3=WARN 4=ERROR），旧表按相反顺序写，导致 WARN 显示成[调试]、
      * DEBUG 显示成[警告] */
-    static const char *tag[] = { "跟踪", "调试", "信息", "警告", "错误" };
+    /* 日志统一英文（与 core 输出一致），不随界面语言切换 */
+    static const char *tag[] = { "TRACE", "DEBUG", "INFO", "WARN", "ERROR" };
     (void)user;
-    log_fmt("[%s] %s", (level >= 0 && level <= 4) ? tag[level] : "日志", msg ? msg : "");
+    log_fmt("[%s] %s", (level >= 0 && level <= 4) ? tag[level] : "LOG", msg ? msg : "");
 }
 
 static void on_state(int state, const char *detail, void *user)
 {
     (void)user;
-    log_fmt("[状态] %s%s%s", vpn_capi_state_name(state),
+    log_fmt("[STATE] %s%s%s", vpn_capi_state_name(state),
             (detail && detail[0]) ? " - " : "", detail ? detail : "");
 }
 
@@ -295,23 +416,23 @@ static void u8_to_w(const char *s, wchar_t *out, int outn)
     out[outn - 1] = 0;
 }
 
-static const wchar_t *state_zh(int state)
+static const wchar_t *state_name(int state)
 {
     switch (state) {
     case VPN_CAPI_STATE_CONNECTING:
-        return L"连接中";
+        return T(S_ST_CONNECTING);
     case VPN_CAPI_STATE_AUTHENTICATING:
-        return L"认证中";
+        return T(S_ST_AUTH);
     case VPN_CAPI_STATE_CONNECTED:
-        return L"已连接";
+        return T(S_ST_CONNECTED);
     case VPN_CAPI_STATE_RECONNECTING:
-        return L"重连中";
+        return T(S_ST_RECONNECTING);
     case VPN_CAPI_STATE_DISCONNECTED:
-        return L"已断开";
+        return T(S_ST_DISCONNECTED);
     case VPN_CAPI_STATE_FAILED:
-        return L"连接失败";
+        return T(S_ST_FAILED);
     default:
-        return L"未连接";
+        return T(S_ST_IDLE);
     }
 }
 
@@ -332,6 +453,91 @@ static COLORREF state_color(int state)
 }
 
 static void tray_tip(const wchar_t *s);
+static void update_status(void);
+static void config_save(void);
+
+/* ---------------- 语言切换 ---------------- */
+
+static void lbl_add(HWND h, int id)
+{
+    if (h && g_label_n < MAX_LABELS) {
+        g_labels[g_label_n].h = h;
+        g_labels[g_label_n].id = id;
+        g_label_n++;
+    }
+}
+
+/* 无连接时的状态/统计行（随语言变化） */
+static void reset_status_lines(void)
+{
+    char line[512];
+
+    wcscpy(g_status_text, T(S_ST_IDLE));
+    snprintf(line, sizeof(line), stat_ip_fmt(), "-", "-", "-");
+    u8_to_w(line, g_stat_line, 512);
+    snprintf(line, sizeof(line), stat_traffic_fmt(), 0.0, 0.0, 0UL);
+    u8_to_w(line, g_stat2_line, 512);
+}
+
+static void tray_tip_status(void)
+{
+    wchar_t tip[256];
+
+    swprintf(tip, 256, L"%ls - %ls", T(S_APP_NAME), g_status_text);
+    tray_tip(tip);
+}
+
+/* 把当前语言应用到所有控件与自绘文本 */
+static void lang_apply(void)
+{
+    wchar_t title[256];
+    int i, sel;
+
+    for (i = 0; i < g_label_n; i++)
+        SetWindowTextW(g_labels[i].h, T(g_labels[i].id));
+
+    if (g_hCert) {
+        sel = (int)SendMessageW(g_hCert, CB_GETCURSEL, 0, 0);
+        SendMessageW(g_hCert, CB_RESETCONTENT, 0, 0);
+        SendMessageW(g_hCert, CB_ADDSTRING, 0, (LPARAM)T(S_CERT_VERIFY));
+        SendMessageW(g_hCert, CB_ADDSTRING, 0, (LPARAM)T(S_CERT_IGNORE));
+        SendMessageW(g_hCert, CB_SETCURSEL, sel < 0 ? 1 : sel, 0);
+    }
+    if (g_hRouteAll)
+        SetWindowTextW(g_hRouteAll, T(S_ROUTE_ALL));
+    if (g_hRoutePriv)
+        SetWindowTextW(g_hRoutePriv, T(S_ROUTE_PRIV));
+
+    g_btn_conn.text = T(S_BTN_CONNECT);
+    g_btn_disc.text = T(S_BTN_DISCONNECT);
+
+    if (g_hwnd) {
+        swprintf(title, 256, L"%ls v%ls  -  SSTP / L2TP / PPTP",
+                 T(S_APP_NAME), APP_VERSION_W);
+        SetWindowTextW(g_hwnd, title);
+    }
+
+    if (g_h)
+        update_status();
+    else {
+        reset_status_lines();
+        tray_tip_status();
+    }
+    if (g_hwnd)
+        InvalidateRect(g_hwnd, NULL, TRUE);
+}
+
+/* 切换语言：立即生效并写入 ini */
+static void set_language(int lang)
+{
+    if (lang != LANG_ZH && lang != LANG_EN)
+        return;
+    if (lang == g_lang)
+        return;
+    g_lang = lang;
+    config_save();
+    lang_apply();
+}
 
 /* ---------------- 日志控件右键菜单 ---------------- */
 
@@ -392,8 +598,8 @@ static LRESULT CALLBACK log_ctrl_proc(HWND h, UINT msg, WPARAM wp, LPARAM lp)
         m = CreatePopupMenu();
         if (!m)
             return 0;
-        AppendMenuW(m, MF_STRING, IDM_LOG_CLEAR, L"清除日志");
-        AppendMenuW(m, MF_STRING, IDM_LOG_COPY, L"复制全部");
+        AppendMenuW(m, MF_STRING, IDM_LOG_CLEAR, T(S_LOG_CLEAR));
+        AppendMenuW(m, MF_STRING, IDM_LOG_COPY, T(S_LOG_COPY));
         SetForegroundWindow(h);
         ok = TrackPopupMenu(m, TPM_LEFTALIGN | TPM_RIGHTBUTTON | TPM_RETURNCMD,
                             pt.x, pt.y, 0, h, NULL);
@@ -662,6 +868,8 @@ static void config_load(void)
             g_cfg_vpndns = atoi(v);
         else if (!strcmp(k, "debug"))
             g_cfg_debug = atoi(v) ? 1 : 0;
+        else if (!strcmp(k, "lang"))
+            g_lang = (v[0] == 'e' || v[0] == 'E') ? LANG_EN : LANG_ZH;
     }
     fclose(f);
     obf_dec(pass_obf, g_cfg_pass, sizeof(g_cfg_pass));
@@ -724,9 +932,11 @@ static void config_save(void)
     if (!f)
         return;
     obf_enc(g_cfg_pass, pass_obf, sizeof(pass_obf));
-    fprintf(f, "; VPN 客户端配置（自动生成，作者 %s）\n", "wwme@163.com");
-    fprintf(f, "; debug=1 输出逐包调试日志，排障时改完重启程序；平时保持 0\n");
+    fprintf(f, "; VPN client configuration (generated automatically, by wwm <wwme@163.com>)\n");
+    fprintf(f, "; debug=1 enables per-packet debug logging (restart required); keep 0 normally\n");
     fprintf(f, "debug=%d\n", g_cfg_debug);
+    fprintf(f, "; lang: zh = Chinese UI, en = English UI\n");
+    fprintf(f, "lang=%s\n", g_lang == LANG_EN ? "en" : "zh");
     fprintf(f, "proto=%d\n", g_cfg_proto);
     fprintf(f, "host=%s\n", g_cfg_host);
     fprintf(f, "port=%d\n", g_cfg_port);
@@ -834,14 +1044,14 @@ static void routes_apply(int want_all, int want_priv)
         vpn_tun_del_route(g_tun_name, 0, 0);
         if (vpn_tun_add_route_via(g_tun_name, 0, 0, 0) == VPN_OK) {
             g_route_all_on = 1;
-            log_fmt("[信息] 已接管全部流量（0.0.0.0/0 -> %s）", g_tun_name);
+            log_fmt("[INFO] route all traffic taken over (0.0.0.0/0 -> %s)", g_tun_name);
         } else {
-            log_fmt("[警告] 接管全部流量失败（可能缺少管理员权限）");
+            log_fmt("[WARN] failed to take over all traffic (administrator rights missing?)");
         }
     } else if (g_route_all_on) {
         vpn_tun_del_route(g_tun_name, 0, 0);
         g_route_all_on = 0;
-        log_fmt("[信息] 已撤销全部流量接管");
+        log_fmt("[INFO] all-traffic routing reverted");
     }
 
     /* 私有网段 */
@@ -853,10 +1063,10 @@ static void routes_apply(int want_all, int want_priv)
             vpn_tun_del_route(g_tun_name, net, mask);
             if (vpn_tun_add_route_metric(g_tun_name, net, mask, 0,
                                          PRIV_ROUTE_METRIC) == VPN_OK)
-                log_fmt("[信息] 已接管私有网段 %s（metric %d，本机路由优先）",
+                log_fmt("[INFO] private ranges taken over: %s (metric %d, local routes still win)",
                         g_priv_nets[i].name, PRIV_ROUTE_METRIC);
             else
-                log_fmt("[警告] 私有网段 %s 下发失败", g_priv_nets[i].name);
+                log_fmt("[WARN] failed to add the private range %s", g_priv_nets[i].name);
         }
         g_route_priv_on = 1;
     } else if (g_route_priv_on) {
@@ -864,7 +1074,7 @@ static void routes_apply(int want_all, int want_priv)
             vpn_tun_del_route(g_tun_name, htonl(g_priv_nets[i].net),
                               htonl(g_priv_nets[i].mask));
         g_route_priv_on = 0;
-        log_fmt("[信息] 已撤销私有网段路由");
+        log_fmt("[INFO] private-range routes reverted");
     }
 }
 
@@ -961,16 +1171,16 @@ static void do_connect(void)
     if (vpn_tun_open("VPNClient", (uint32_t)g_mtu, g_tun_name, sizeof(g_tun_name), &g_tun) == VPN_OK) {
         g_has_tun = 1;
         g_net_configured = 0;
-        log_fmt("[信息] 虚拟网卡 %s 已创建", g_tun_name);
+        log_fmt("[INFO] virtual adapter %s created", g_tun_name);
     } else {
-        log_fmt("[警告] 未能创建虚拟网卡（wintun.dll 缺失或未提权），仅做连通性验证");
+        log_fmt("[WARN] could not create the virtual adapter (wintun.dll missing or not elevated), connectivity check only");
     }
 
     /* 2) 创建会话 */
     err[0] = 0;
     g_h = vpn_capi_create(&cfg, on_state, NULL, NULL, err, (int)sizeof(err));
     if (!g_h) {
-        log_fmt("[错误] 创建失败: %s", err);
+        log_fmt("[ERROR] creation failed: %s", err);
         if (g_has_tun && g_tun.destroy) {
             g_tun.destroy(g_tun.ctx);
             memset(&g_tun, 0, sizeof(g_tun));
@@ -987,13 +1197,13 @@ static void do_connect(void)
         ct.destroy = NULL; /* GUI 自己回收 wintun 会话 */
         ct.ctx = NULL;
         if (vpn_capi_attach_tun(g_h, &ct) != 0)
-            log_fmt("[警告] 挂接虚拟网卡失败，将不转发 IP 包");
+            log_fmt("[WARN] failed to attach the virtual adapter, IP packets will not be forwarded");
     }
 
     /* 4) 启动 */
     rc = vpn_capi_start(g_h);
     if (rc != 0) {
-        log_fmt("[错误] 启动失败: %s", vpn_capi_strerror(rc));
+        log_fmt("[ERROR] start failed: %s", vpn_capi_strerror(rc));
         do_disconnect();
         return;
     }
@@ -1001,7 +1211,7 @@ static void do_connect(void)
     g_was_connected = 0;
     set_ui_running(1);
     config_save();
-    log_fmt("[信息] 正在连接 %s:%d ...", g_host, cfg.port);
+    log_fmt("[INFO] connecting %s:%d ...", g_host, cfg.port);
 }
 
 static void do_disconnect(void)
@@ -1028,14 +1238,12 @@ static void do_disconnect(void)
     g_last_ip[0] = 0;
     g_was_connected = 0;
     set_ui_running(0);
-    wcscpy(g_status_text, L"未连接");
-    wcscpy(g_stat_line, L"IP  -      网关  -      DNS  -");
-    wcscpy(g_stat2_line, L"收 0.0 KB    发 0.0 KB    重连 0");
+    reset_status_lines();
     g_stat_color = C_GRAY;
-    tray_tip(L"VPN 客户端 - 未连接");
+    tray_tip_status();
     if (g_hwnd)
         InvalidateRect(g_hwnd, NULL, FALSE);
-    log_fmt("[信息] 已断开");
+    log_fmt("[INFO] disconnected");
 }
 
 /* ---------------- 定时器：刷新状态、配置路由 ---------------- */
@@ -1057,22 +1265,17 @@ static void update_status(void)
 
     {
         char line[512];
-        wchar_t tip[192];
 
-        wcscpy(g_status_text, state_zh(st.state));
-        snprintf(line, sizeof(line),
-                 "IP  %s      网关  %s      DNS  %s",
-                 ip, peer, dns);
+        wcscpy(g_status_text, state_name(st.state));
+        snprintf(line, sizeof(line), stat_ip_fmt(), ip, peer, dns);
         u8_to_w(line, g_stat_line, 512);
-        snprintf(line, sizeof(line), "收 %.1f KB    发 %.1f KB    重连 %lu",
+        snprintf(line, sizeof(line), stat_traffic_fmt(),
                  (double)st.rx_bytes / 1024.0, (double)st.tx_bytes / 1024.0,
                  (unsigned long)st.reconnects);
         u8_to_w(line, g_stat2_line, 512);
         g_stat_color = state_color(st.state);
-        if (g_ui_running) {
-            swprintf(tip, 192, L"%ls - %ls", APP_NAME_W, g_status_text);
-            tray_tip(tip);
-        }
+        if (g_ui_running)
+            tray_tip_status();
         if (g_hwnd) {
             RECT r1 = { 40, 228, 740, 300 };
             RECT r2 = { 560, 22, 764, 56 };
@@ -1096,7 +1299,7 @@ static void update_status(void)
             if (peer_ip)
                 vpn_tun_add_route_via(g_tun_name, peer_ip, htonl(0xFFFFFFFFu), 0);
             if (st.dns1[0] && !g_cfg_vpndns)
-                log_fmt("[信息] 已按配置跳过 DNS 接管（vpndns=0）");
+                log_fmt("[INFO] DNS takeover skipped by configuration (vpndns=0)");
             if (st.dns1[0] && g_cfg_vpndns) {
                 uint32_t d1 = 0, d2 = 0;
                 vpn_ip_parse(st.dns1, &d1);
@@ -1106,25 +1309,25 @@ static void update_status(void)
                     /* 接口度量压到 5，系统才会优先用 VPN 下发的 DNS；
                      * 否则 Windows 仍先问物理网卡的 DNS，内网域名解析不到 */
                     if (vpn_tun_set_dns_pref(g_tun_name, d1, d2, 5) == VPN_OK)
-                        log_fmt("[信息] DNS 已接管：%s%s%s（VPN 网卡优先级 5）",
+                        log_fmt("[INFO] DNS taken over: %s%s%s (VPN adapter metric 5)",
                                 st.dns1, st.dns2[0] ? " / " : "",
                                 st.dns2[0] ? st.dns2 : "");
                     else
-                        log_fmt("[警告] DNS 设置失败：%s", st.dns1);
+                        log_fmt("[WARN] failed to set DNS: %s", st.dns1);
                 }
             }
             routes_apply(Button_GetCheck(g_hRouteAll) == BST_CHECKED,
                          g_hRoutePriv && Button_GetCheck(g_hRoutePriv) == BST_CHECKED);
             snprintf(g_last_ip, sizeof(g_last_ip), "%s", st.local_ip);
             g_net_configured = 1;
-            log_fmt("[信息] 网卡配置完成：%s/24 网关 %s", st.local_ip, st.peer_ip);
+            log_fmt("[INFO] adapter configured: %s/24 gateway %s", st.local_ip, st.peer_ip);
             g_was_connected = 1;
         }
     }
 
     /* 连接失败/断开时把界面恢复成可编辑 */
     if ((st.state == VPN_CAPI_STATE_FAILED || st.state == VPN_CAPI_STATE_DISCONNECTED) && g_was_connected) {
-        log_fmt("[警告] 连接已断开（核心会自动重连）");
+        log_fmt("[WARN] connection lost (the core will reconnect automatically)");
         g_was_connected = 0;
     }
 }
@@ -1183,6 +1386,20 @@ static void draw_dot(HDC dc, int cx, int cy, int rad, COLORREF c)
     DeleteObject(br);
 }
 
+/* 语言切换胶囊：active=1 画成白底深字（当前语言） */
+static void draw_chip(HDC dc, const RECT *rc, const wchar_t *text, int active)
+{
+    int rad = (rc->bottom - rc->top) / 2;
+
+    if (active)
+        fill_round(dc, rc, rad, RGB(255, 255, 255));
+    else
+        stroke_round(dc, rc, rad, RGB(0x8F, 0xAC, 0xCC));
+    draw_text(dc, text, rc, g_font_small,
+              active ? C_PRIMARY : RGB(0xC7, 0xDC, 0xF2),
+              DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+}
+
 static void draw_banner(HDC dc)
 {
     RECT r, tr;
@@ -1203,16 +1420,27 @@ static void draw_banner(HDC dc)
         DrawIconEx(dc, 22, 20, g_icon_big, 36, 36, 0, NULL, DI_NORMAL);
 
     SetRect(&tr, 70, 12, 500, 42);
-    draw_text(dc, APP_NAME_W, &tr, g_font_title, RGB(255, 255, 255),
+    draw_text(dc, T(S_APP_NAME), &tr, g_font_title, RGB(255, 255, 255),
               DT_LEFT | DT_VCENTER | DT_SINGLELINE);
     SetRect(&tr, 70, 42, 540, 64);
-    draw_text(dc, L"SSTP / L2TP / PPTP      v" APP_VERSION_W L"      作者 " APP_AUTHOR_W,
-              &tr, g_font_small, RGB(0xC7, 0xDC, 0xF2), DT_LEFT | DT_SINGLELINE);
+    {
+        wchar_t meta[192];
 
-    draw_dot(dc, 610, 39, 5, g_stat_color);
-    SetRect(&tr, 622, 22, 764, 56);
+        swprintf(meta, 192, T(S_BANNER_META), APP_VERSION_W, APP_AUTHOR_W);
+        draw_text(dc, meta, &tr, g_font_small, RGB(0xC7, 0xDC, 0xF2),
+                  DT_LEFT | DT_SINGLELINE);
+    }
+
+    draw_dot(dc, 612, 24, 5, g_stat_color);
+    SetRect(&tr, 624, 10, 768, 38);
     draw_text(dc, g_status_text, &tr, g_font_bold, RGB(255, 255, 255),
               DT_RIGHT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+
+    /* 语言切换胶囊：点一下立即切换，选择写入 vpn-gui.ini */
+    SetRect(&g_lang_zh_rc, 660, 44, 712, 68);
+    SetRect(&g_lang_en_rc, 716, 44, 768, 68);
+    draw_chip(dc, &g_lang_zh_rc, L"中文", g_lang != LANG_ZH);
+    draw_chip(dc, &g_lang_en_rc, L"EN", g_lang != LANG_EN);
 }
 
 static void draw_btn(HDC dc, const gui_btn *b, int idx)
@@ -1255,9 +1483,7 @@ static void draw_card(HDC dc)
 
     /* 私网路由说明 */
     SetRect(&tr, 40, 232, 740, 250);
-    draw_text(dc, L"私有网段：10.0.0.0/8、172.16.0.0/12、192.168.0.0/16"
-                  L"    ·    优先级低于本机既有路由，不影响本地网络互访",
-              &tr, g_font_small, RGB(0x8A, 0x97, 0xA8),
+    draw_text(dc, T(S_CARD_NOTE), &tr, g_font_small, RGB(0x8A, 0x97, 0xA8),
               DT_LEFT | DT_SINGLELINE | DT_END_ELLIPSIS);
 
     draw_dot(dc, 48, 262, 5, g_stat_color);
@@ -1284,19 +1510,21 @@ static void draw_log(HDC dc)
     fill_round(dc, &r, 12, C_LOGBG);
 
     SetRect(&r, 22, LOG_Y - 26, 240, LOG_Y - 4);
-    draw_text(dc, L"运行日志", &r, g_font_bold, C_TEXT, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+    draw_text(dc, T(S_LOG_TITLE), &r, g_font_bold, C_TEXT,
+              DT_LEFT | DT_VCENTER | DT_SINGLELINE);
     SetRect(&r, 360, LOG_Y - 26, 760, LOG_Y - 4);
-    draw_text(dc, L"同步写入 exe 目录 vpn-gui.log", &r, g_font_small, C_SUBTEXT,
+    draw_text(dc, T(S_LOG_HINT), &r, g_font_small, C_SUBTEXT,
               DT_RIGHT | DT_VCENTER | DT_SINGLELINE);
 }
 
 static void draw_footer(HDC dc)
 {
     RECT r;
+    wchar_t foot[256];
 
     SetRect(&r, 22, LOG_Y + LOG_H + 8, 760, WIN_H - 6);
-    draw_text(dc, L"VPN 客户端 v" APP_VERSION_W L"    ·    作者 " APP_AUTHOR_W,
-              &r, g_font_small, C_SUBTEXT, DT_LEFT | DT_SINGLELINE);
+    swprintf(foot, 256, T(S_FOOTER), APP_VERSION_W, APP_AUTHOR_W);
+    draw_text(dc, foot, &r, g_font_small, C_SUBTEXT, DT_LEFT | DT_SINGLELINE);
 }
 
 static void paint_all(HDC dc)
@@ -1362,7 +1590,7 @@ static void tray_add(void)
     g_nid.uCallbackMessage = WM_TRAY;
     g_nid.hIcon = (HICON)LoadImageW(g_inst, MAKEINTRESOURCEW(IDI_APP), IMAGE_ICON,
                                     cx, cy, LR_DEFAULTCOLOR);
-    wcscpy(g_nid.szTip, L"VPN 客户端 - 未连接");
+    swprintf(g_nid.szTip, 128, L"%ls - %ls", T(S_APP_NAME), T(S_ST_IDLE));
     if (Shell_NotifyIconW(NIM_ADD, &g_nid))
         g_tray_added = 1;
 }
@@ -1411,23 +1639,30 @@ static void show_about(void)
 {
     if (!g_hwnd)
         return;
-    MessageBoxW(g_hwnd, ABOUT_TEXT, L"版本说明", MB_OK | MB_ICONINFORMATION);
+    MessageBoxW(g_hwnd, T(S_ABOUT), T(S_ABOUT_TITLE), MB_OK | MB_ICONINFORMATION);
 }
 
 static void tray_menu(void)
 {
     HMENU m = CreatePopupMenu();
+    HMENU lang;
     POINT pt;
 
     if (!m)
         return;
-    AppendMenuW(m, MF_STRING, IDM_SHOW, L"显示主界面");
+    AppendMenuW(m, MF_STRING, IDM_SHOW, T(S_TRAY_SHOW));
     AppendMenuW(m, MF_SEPARATOR, 0, NULL);
-    AppendMenuW(m, g_ui_running ? MF_GRAYED : MF_STRING, IDM_CONNECT, L"连接");
-    AppendMenuW(m, g_ui_running ? MF_STRING : MF_GRAYED, IDM_DISCONNECT, L"断开");
+    AppendMenuW(m, g_ui_running ? MF_GRAYED : MF_STRING, IDM_CONNECT, T(S_TRAY_CONNECT));
+    AppendMenuW(m, g_ui_running ? MF_STRING : MF_GRAYED, IDM_DISCONNECT, T(S_TRAY_DISCONNECT));
     AppendMenuW(m, MF_SEPARATOR, 0, NULL);
-    AppendMenuW(m, MF_STRING, IDM_ABOUT, L"版本说明");
-    AppendMenuW(m, MF_STRING, IDM_EXIT, L"退出");
+    /* 语言子菜单：与标题栏右上角胶囊等效，点完立即生效 */
+    lang = CreatePopupMenu();
+    AppendMenuW(lang, MF_STRING | (g_lang == LANG_ZH ? MF_CHECKED : 0), IDM_LANG_ZH, T(S_LANG_ZH));
+    AppendMenuW(lang, MF_STRING | (g_lang == LANG_EN ? MF_CHECKED : 0), IDM_LANG_EN, T(S_LANG_EN));
+    AppendMenuW(m, MF_POPUP, (UINT_PTR)lang, T(S_LANG_MENU));
+    AppendMenuW(m, MF_SEPARATOR, 0, NULL);
+    AppendMenuW(m, MF_STRING, IDM_ABOUT, T(S_TRAY_ABOUT));
+    AppendMenuW(m, MF_STRING, IDM_EXIT, T(S_TRAY_EXIT));
     SetMenuDefaultItem(m, IDM_SHOW, FALSE);
 
     GetCursorPos(&pt);
@@ -1485,57 +1720,59 @@ static void on_create(HWND hwnd)
     g_field_n = 0;
 
     /* 第一行：协议 / 服务器 / 端口 */
-    mk_label(hwnd, L"协议", 40, ROW1_Y + 4, 40, 20);
+    g_label_n = 0;   /* 窗口重建时重新登记，避免残留失效句柄 */
+    lbl_add(mk_label(hwnd, T(S_PROTO), 40, ROW1_Y + 4, 44, 20), S_PROTO);
     g_hProto = mk_combo(hwnd, IDC_PROTO, 84, ROW1_Y, 96);
     SendMessageW(g_hProto, CB_ADDSTRING, 0, (LPARAM)L"SSTP");
     SendMessageW(g_hProto, CB_ADDSTRING, 0, (LPARAM)L"L2TP");
     SendMessageW(g_hProto, CB_ADDSTRING, 0, (LPARAM)L"PPTP");
     SendMessageW(g_hProto, CB_SETCURSEL, 0, 0);
 
-    mk_label(hwnd, L"服务器", 196, ROW1_Y + 4, 52, 20);
+    lbl_add(mk_label(hwnd, T(S_SERVER), 196, ROW1_Y + 4, 52, 20), S_SERVER);
     g_hHost = mk_edit(hwnd, IDC_HOST, 250, ROW1_Y, 250, CTL_H, 0);
-    g_hPortLabel = mk_label(hwnd, L"端口", 516, ROW1_Y + 4, 40, 20);
+    g_hPortLabel = mk_label(hwnd, T(S_PORT), 516, ROW1_Y + 4, 40, 20);
+    lbl_add(g_hPortLabel, S_PORT);
     g_hPort = mk_edit(hwnd, IDC_PORT, 556, ROW1_Y, 80, CTL_H, ES_NUMBER);
     g_port_field_idx = g_field_n - 1;
     g_port_owner = 0;
     SetWindowTextW(g_hPort, L"443");
 
     /* 第二行：用户名 / 密码 / 证书 */
-    mk_label(hwnd, L"用户名", 40, ROW2_Y + 4, 52, 20);
+    lbl_add(mk_label(hwnd, T(S_USER), 40, ROW2_Y + 4, 52, 20), S_USER);
     g_hUser = mk_edit(hwnd, IDC_USER, 94, ROW2_Y, 170, CTL_H, 0);
-    mk_label(hwnd, L"密码", 280, ROW2_Y + 4, 40, 20);
+    lbl_add(mk_label(hwnd, T(S_PASS), 280, ROW2_Y + 4, 40, 20), S_PASS);
     g_hPass = mk_edit(hwnd, IDC_PASS, 318, ROW2_Y, 170, CTL_H, ES_PASSWORD);
-    mk_label(hwnd, L"证书", 504, ROW2_Y + 4, 40, 20);
+    lbl_add(mk_label(hwnd, T(S_CERT), 504, ROW2_Y + 4, 40, 20), S_CERT);
     g_hCert = mk_combo(hwnd, IDC_CERT, 544, ROW2_Y, 96);
-    SendMessageW(g_hCert, CB_ADDSTRING, 0, (LPARAM)L"校验");
-    SendMessageW(g_hCert, CB_ADDSTRING, 0, (LPARAM)L"忽略");
+    SendMessageW(g_hCert, CB_ADDSTRING, 0, (LPARAM)T(S_CERT_VERIFY));
+    SendMessageW(g_hCert, CB_ADDSTRING, 0, (LPARAM)T(S_CERT_IGNORE));
     SendMessageW(g_hCert, CB_SETCURSEL, 1, 0);
 
     /* 第三行：MTU / 路由 / 按钮 */
-    mk_label(hwnd, L"MTU", 40, ROW3_Y + 4, 36, 20);
+    mk_label(hwnd, L"MTU", 40, ROW3_Y + 4, 36, 20);   /* MTU 中英同形，无需登记 */
     g_hMtu = mk_edit(hwnd, IDC_MTU, 78, ROW3_Y, 80, CTL_H, ES_NUMBER);
     SetWindowTextW(g_hMtu, L"1400");
 
-    g_hRouteAll = CreateWindowExW(0, L"BUTTON", L"接管全部流量",
+    g_hRouteAll = CreateWindowExW(0, L"BUTTON", T(S_ROUTE_ALL),
                                   WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
-                                  178, ROW3_Y + 2, 140, 22, hwnd,
+                                  178, ROW3_Y + 2, 150, 22, hwnd,
                                   (HMENU)(INT_PTR)IDC_ROUTEALL, NULL, NULL);
     SendMessageW(g_hRouteAll, WM_SETFONT, (WPARAM)g_font, TRUE);
 
     /* 私网段路由：优先级低于本机已有路由，不影响本地网络互访 */
-    g_hRoutePriv = CreateWindowExW(0, L"BUTTON", L"接管私有网段",
+    g_hRoutePriv = CreateWindowExW(0, L"BUTTON", T(S_ROUTE_PRIV),
                                    WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
-                                   324, ROW3_Y + 2, 150, 22, hwnd,
+                                   334, ROW3_Y + 2, 160, 22, hwnd,
                                    (HMENU)(INT_PTR)IDC_ROUTEPRIV, NULL, NULL);
     SendMessageW(g_hRoutePriv, WM_SETFONT, (WPARAM)g_font, TRUE);
 
     g_btn_conn.primary = 1;
-    g_btn_conn.text = L"连接";
+    g_btn_conn.text = T(S_BTN_CONNECT);
     g_btn_conn.enabled = 1;
     SetRect(&g_btn_conn.rc, 496, 184, 606, 226);
 
     g_btn_disc.primary = 0;
-    g_btn_disc.text = L"断开";
+    g_btn_disc.text = T(S_BTN_DISCONNECT);
     g_btn_disc.enabled = 0;
     SetRect(&g_btn_disc.rc, 618, 184, 728, 226);
 
@@ -1552,9 +1789,9 @@ static void on_create(HWND hwnd)
 
     apply_config_to_ui();
 
-    log_fmt("[信息] 就绪。填写 RouterOS 地址与账号后点“连接”；关闭窗口会最小化到托盘。");
+    log_fmt("[INFO] ready. enter the server address and credentials, then press Connect; closing the window minimizes to the tray.");
     /* 构建时间随每次编译变化，用户报问题时据此确认跑的是哪个版本 */
-    log_fmt("[信息] 客户端构建时间 %s %s", __DATE__, __TIME__);
+    log_fmt("[INFO] client build time %s %s", __DATE__, __TIME__);
 }
 
 static BOOL hit_btn(const gui_btn *b, POINT p)
@@ -1619,7 +1856,7 @@ static LRESULT CALLBACK wnd_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                 InvalidateRect(hwnd, &a, FALSE);
                 InvalidateRect(hwnd, &b, FALSE);
             }
-            if (idx >= 0)
+            if (idx >= 0 || PtInRect(&g_lang_zh_rc, p) || PtInRect(&g_lang_en_rc, p))
                 SetCursor(LoadCursorW(NULL, MAKEINTRESOURCEW(32649))); /* IDC_HAND */
         }
         return 0;
@@ -1629,6 +1866,15 @@ static LRESULT CALLBACK wnd_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             POINT p = { GET_X_LPARAM(lp), GET_Y_LPARAM(lp) };
             int idx = -1;
 
+            /* 标题栏右上角语言胶囊优先判定：与按钮区域不重叠 */
+            if (PtInRect(&g_lang_zh_rc, p)) {
+                set_language(LANG_ZH);
+                return 0;
+            }
+            if (PtInRect(&g_lang_en_rc, p)) {
+                set_language(LANG_EN);
+                return 0;
+            }
             if (hit_btn(&g_btn_conn, p))
                 idx = 0;
             else if (hit_btn(&g_btn_disc, p))
@@ -1672,6 +1918,12 @@ static LRESULT CALLBACK wnd_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             return 0;
         case IDM_DISCONNECT:
             do_disconnect();
+            return 0;
+        case IDM_LANG_ZH:
+            set_language(LANG_ZH);
+            return 0;
+        case IDM_LANG_EN:
+            set_language(LANG_EN);
             return 0;
         case IDM_ABOUT:
             show_about();
@@ -1783,6 +2035,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmd, int show)
     HICON icon;
     RECT rc;
     HANDLE mtx;
+    wchar_t title[128];
 
     (void)prev;
     (void)cmd;
@@ -1839,7 +2092,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmd, int show)
     AdjustWindowRectEx(&rc, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX,
                        FALSE, 0);
 
-    hwnd = CreateWindowExW(0, APP_CLASS_W, APP_TITLE_W,
+    swprintf(title, 128, L"%ls v%ls  -  SSTP / L2TP / PPTP", T(S_APP_NAME), APP_VERSION_W);
+    hwnd = CreateWindowExW(0, APP_CLASS_W, title,
                            WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX,
                            CW_USEDEFAULT, CW_USEDEFAULT,
                            rc.right - rc.left, rc.bottom - rc.top,
