@@ -43,6 +43,19 @@ cd build && ctest --output-on-failure
 
 Outputs: `libvpncore.a`, `libvpncore.so`, `vpn-cli` and the test executables.
 
+## Packaging and release
+
+`scripts/build_windows.sh`, `scripts/build_android.sh` and `scripts/package_all.sh`
+produce `dist/tunnel-client-all-<ver>.zip`. `dist/` is not tracked by git; the
+bundle is published as a GitHub Release asset:
+
+```bash
+GH_TOKEN=<token with Contents: read-write> scripts/package_all.sh 1.4.0
+```
+
+The script creates (or reuses) the `v<ver>` release and replaces the asset with
+the same name. `SKIP_RELEASE=1` skips the upload and leaves the zip in `dist/`.
+
 ## Usage (CLI)
 
 ```bash
