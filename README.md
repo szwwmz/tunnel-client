@@ -2,6 +2,8 @@
 
 English | [简体中文](README.zh-CN.md)
 
+**End users: see [使用说明.md](使用说明.md) (Chinese, phone / Windows).**
+
 A cross-platform tunnel client whose protocol stack is written in C11. The Linux,
 Android and Windows shells all share the same core, so protocol behaviour,
 certificate policy and statistics are identical on every platform.

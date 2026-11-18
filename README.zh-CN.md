@@ -2,6 +2,8 @@
 
 [English](README.md) | 简体中文
 
+**普通用户请看：[使用说明（手机 / Windows）](使用说明.md)**
+
 核心协议栈用 C11 实现，Linux / Android / Windows 三个外壳共用同一份代码，
 保证协议行为、证书策略、统计口径完全一致。
 
