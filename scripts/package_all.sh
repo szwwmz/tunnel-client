@@ -59,11 +59,12 @@ ls -lh "$OUT"
 # 跳过方式：SKIP_RELEASE=1 scripts/package_all.sh
 upload_release() {
     local token="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
-    local url owner repo tag api rel_id asset_id
-    url="$(git -C "$ROOT" remote get-url origin 2>/dev/null || true)"
+    local url slug owner repo tag api rel_id asset_id
+    url="$(git -c safe.directory="$ROOT" -C "$ROOT" remote get-url origin 2>/dev/null || true)"
     [ -n "$url" ] || { echo "无 origin，跳过 Release 上传"; return 0; }
-    owner="$(printf '%s' "$url" | sed -E 's#.*[:/]([^/]+)/([^/]+?)(\.git)?$#\1#')"
-    repo="$(printf '%s' "$url"  | sed -E 's#.*[:/]([^/]+)/([^/]+?)(\.git)?$#\2#')"
+    slug="$(printf '%s' "$url" | sed -E 's#^git@[^:]+:##; s#^https?://[^/]+/##; s#\.git$##; s#/+$##')"
+    owner="${slug%%/*}"
+    repo="${slug#*/}"
     tag="v$VER"
     api="https://api.github.com/repos/$owner/$repo"
 
