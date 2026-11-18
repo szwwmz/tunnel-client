@@ -228,7 +228,7 @@ class VpnClientService : VpnService() {
             try {
                 builder.addDisallowedApplication(packageName)
             } catch (e: Exception) {
-                Log.w(TAG, "addDisallowedApplication 失败", e)
+                Log.w(TAG, "addDisallowedApplication failed", e)
             }
             /* DNS 只在服务器下发了地址时才接管，否则会把自己配的
              * 1.1.1.1 塞进隧道，断网后解析全部失败 */
@@ -241,7 +241,7 @@ class VpnClientService : VpnService() {
                 builder.setMetered(false)
             }
 
-            val pfd = builder.establish() ?: throw IllegalStateException("establish() 返回 null")
+            val pfd = builder.establish() ?: throw IllegalStateException("establish() returned null")
             val fd = pfd.detachFd() // 所有权转移给核心，核心负责 close
             pfd.close()
 
@@ -251,9 +251,9 @@ class VpnClientService : VpnService() {
                 return
             }
             notify(L.t("已连接 · $addr", "Connected · $addr"))
-            Log.i(TAG, "隧道建立完成 addr=$addr")
+            Log.i(TAG, "tunnel established addr=$addr")
         } catch (e: Exception) {
-            Log.e(TAG, "建立隧道失败", e)
+            Log.e(TAG, "failed to establish the tunnel", e)
             notify(L.t("建立隧道失败：${e.message}", "Tunnel setup failed: ${e.message}"))
             stopSelf()
         }
@@ -311,7 +311,7 @@ class VpnClientService : VpnService() {
             cm.registerDefaultNetworkCallback(cb)
             netCallback = cb
         } catch (e: Exception) {
-            Log.w(TAG, "注册网络回调失败", e)
+            Log.w(TAG, "failed to register the network callback", e)
         }
     }
 

@@ -136,7 +136,7 @@ int vpn_tun_open(const char *dev_name, uint32_t mtu, char *name_out, size_t name
     struct ifreq ifr;
     int fd = open("/dev/net/tun", O_RDWR);
     if (fd < 0) {
-        VPN_ERROR("打开 /dev/net/tun 失败: %s（需要 root 或 CAP_NET_ADMIN）", strerror(errno));
+        VPN_ERROR("failed to open /dev/net/tun: %s (needs root or CAP_NET_ADMIN)", strerror(errno));
         return VPN_ERR_IO;
     }
 
@@ -146,7 +146,7 @@ int vpn_tun_open(const char *dev_name, uint32_t mtu, char *name_out, size_t name
         snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", dev_name);
 
     if (ioctl(fd, TUNSETIFF, &ifr) < 0) {
-        VPN_ERROR("TUNSETIFF 失败: %s", strerror(errno));
+        VPN_ERROR("TUNSETIFF failed: %s", strerror(errno));
         close(fd);
         return VPN_ERR_IO;
     }
@@ -345,9 +345,9 @@ int vpn_tun_set_dns(const char *dev_name, uint32_t dns1, uint32_t dns2)
      * Android 由 VpnService.Builder.addDnsServer 完成，Windows 由 shell 用 API 设置。 */
     char b1[32], b2[32];
     if (dns1)
-        VPN_INFO("接口 %s DNS1 = %s", dev_name, vpn_ip_ntoa(dns1, b1, sizeof(b1)));
+        VPN_INFO("interface %s DNS1 = %s", dev_name, vpn_ip_ntoa(dns1, b1, sizeof(b1)));
     if (dns2)
-        VPN_INFO("接口 %s DNS2 = %s", dev_name, vpn_ip_ntoa(dns2, b2, sizeof(b2)));
+        VPN_INFO("interface %s DNS2 = %s", dev_name, vpn_ip_ntoa(dns2, b2, sizeof(b2)));
     return VPN_OK;
 }
 #endif /* !_WIN32（Windows 侧实现见 vpn_tun_win.c） */

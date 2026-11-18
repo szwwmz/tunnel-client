@@ -24,7 +24,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#define CLI_VERSION "1.0.0"
+#define CLI_VERSION "1.3.16"
 
 static volatile sig_atomic_t g_stop;
 
@@ -37,48 +37,48 @@ static void on_signal(int sig)
 static void usage(const char *argv0)
 {
     printf(
-"跨平台 VPN 客户端 %s（SSTP / L2TP over IPsec / PPTP）\n"
+"Cross-platform VPN client %s (SSTP / L2TP over IPsec / PPTP)\n"
 "\n"
-"用法：%s --server HOST [选项]\n"
+"Usage: %s --server HOST [options]\n"
 "\n"
-"必填：\n"
-"  -s, --server HOST        服务器地址（域名或 IP）\n"
-"  -u, --user NAME          用户名\n"
-"  -p, --password PASS      密码（省略则交互输入）\n"
+"Required:\n"
+"  -s, --server HOST        server address (host name or IP)\n"
+"  -u, --user NAME          user name\n"
+"  -p, --password PASS      password (prompted if omitted)\n"
 "\n"
-"协议：\n"
-"      --proto P             sstp | l2tp | pptp（默认 sstp）\n"
-"      --port N              端口：仅 SSTP 可自定义（默认 443）；\n"
-"                            L2TP 固定 UDP/1701、PPTP 固定 TCP/1723，该参数被忽略\n"
-"      --psk KEY             L2TP/IPsec 预共享密钥（由平台 IPsec 使用）\n"
-"      --auth M              mschapv2 | chap | pap | auto（默认 auto）\n"
+"Protocol:\n"
+"      --proto P            sstp | l2tp | pptp (default: sstp)\n"
+"      --port N             port: only SSTP accepts a custom value (default 443);\n"
+"                           L2TP is fixed to UDP/1701, PPTP to TCP/1723; ignored otherwise\n"
+"      --psk KEY            L2TP/IPsec pre-shared key\n"
+"      --auth M             mschapv2 | chap | pap | auto (default: auto)\n"
 "\n"
-"证书（SSTP）：\n"
-"      --cert verify|ignore  证书策略（默认 verify）\n"
-"      --ca-file PATH        自定义 CA（PEM）\n"
-"      --ca-dir PATH         CA 目录\n"
-"      --server-name NAME    SNI / 证书校验名（默认同 --server）\n"
-"      --no-verify-hostname  只校验证书链，不校验主机名\n"
+"Certificate (SSTP):\n"
+"      --cert verify|ignore  certificate policy (default: verify)\n"
+"      --ca-file PATH        custom CA bundle (PEM)\n"
+"      --ca-dir PATH         CA directory\n"
+"      --server-name NAME    SNI / certificate name (default: same as --server)\n"
+"      --no-verify-hostname  verify the chain only, not the host name\n"
 "\n"
-"网络：\n"
-"      --mtu N               链路 MTU（默认 1400）\n"
-"      --dev NAME            TUN 设备名（默认 tun%%d，需要 root）\n"
-"      --no-tun              不创建 TUN，仅验证协议连通性\n"
-"      --route CIDR          额外路由，可重复（如 10.0.0.0/8）\n"
-"      --no-default-route    不安装默认路由（仅走 --route 指定的网段）\n"
-"      --keepalive N         保活间隔秒（0 关闭，默认 30）\n"
-"      --reconnect-delay N   重连间隔秒（默认 5）\n"
-"      --max-retries N       最大重连次数（-1 无限，默认 -1）\n"
-"      --no-reconnect        断开后不自动重连（默认自动重连开启）\n"
-"      --timeout N           连接超时秒（默认 20）\n"
+"Network:\n"
+"      --mtu N               link MTU (default 1400)\n"
+"      --dev NAME            TUN device name (default tun%%d, needs root)\n"
+"      --no-tun              do not create a TUN device, connectivity check only\n"
+"      --route CIDR          extra route, repeatable (e.g. 10.0.0.0/8)\n"
+"      --no-default-route    do not install a default route (only --route subnets)\n"
+"      --keepalive N         keepalive interval in seconds (0 = off, default 30)\n"
+"      --reconnect-delay N   reconnect delay in seconds (default 5)\n"
+"      --max-retries N       max reconnect attempts (-1 = unlimited, default -1)\n"
+"      --no-reconnect        do not reconnect automatically after a drop\n"
+"      --timeout N           connect timeout in seconds (default 20)\n"
 "\n"
-"输出：\n"
-"  -v, --verbose             调试日志（hexdump 级）\n"
-"  -q, --quiet               只输出错误\n"
-"      --stats-interval N    统计打印间隔秒（0 关闭，默认 5）\n"
+"Output:\n"
+"  -v, --verbose             debug logging (hexdump level)\n"
+"  -q, --quiet               errors only\n"
+"      --stats-interval N    stats print interval in seconds (0 = off, default 5)\n"
 "  -h, --help / -V, --version\n"
 "\n"
-"示例：\n"
+"Examples:\n"
 "  %s -s vpn.example.com -u alice -p secret\n"
 "  %s -s vpn.example.com --proto sstp --port 992 --cert ignore --dev tun9\n"
 "  %s -s 1.2.3.4 --proto l2tp -u alice -p secret --route 192.168.88.0/24\n",
@@ -99,7 +99,7 @@ static const char *opt_value(int argc, char **argv, int *i, const char *name)
     if (argv[*i][n] != '\0')
         return NULL;
     if (*i + 1 >= argc) {
-        fprintf(stderr, "参数 %s 缺少取值\n", name);
+        fprintf(stderr, "option %s requires a value\n", name);
         exit(2);
     }
     (*i)++;
@@ -108,7 +108,7 @@ static const char *opt_value(int argc, char **argv, int *i, const char *name)
 
 static int read_password(char *out, size_t cap)
 {
-    char *p = getpass("密码：");
+    char *p = getpass("Password: ");
     if (!p)
         return -1;
     snprintf(out, cap, "%s", p);
@@ -197,7 +197,7 @@ static void print_stats(const vpn_stats *st)
     if (st->connected_since_ms)
         up = (vpn_now_ms() - st->connected_since_ms) / 1000;
 
-    printf("[统计] 在线 %llds  RX %s/%llu 包  TX %s/%llu 包  丢弃 %llu  重连 %u\n",
+    printf("[stats] up %llds  RX %s/%llu pkts  TX %s/%llu pkts  dropped %llu  reconnects %u\n",
            (long long)up, human_bytes(st->rx_bytes, rx, sizeof(rx)),
            (unsigned long long)st->rx_packets,
            human_bytes(st->tx_bytes, tx, sizeof(tx)),
@@ -210,9 +210,9 @@ static void cb_state(void *ctx, vpn_state state, const char *detail)
 {
     (void)ctx;
     if (state == VPN_STATE_CONNECTED)
-        printf("[状态] %s  %s\n", vpn_state_name(state), detail ? detail : "");
+        printf("[state] %s  %s\n", vpn_state_name(state), detail ? detail : "");
     else
-        fprintf(stderr, "[状态] %s  %s\n", vpn_state_name(state), detail ? detail : "");
+        fprintf(stderr, "[state] %s  %s\n", vpn_state_name(state), detail ? detail : "");
     fflush(stdout);
     fflush(stderr);
 }
@@ -285,7 +285,7 @@ int main(int argc, char **argv)
             snprintf(cfg.password, sizeof(cfg.password), "%s", v);
         } else if ((v = opt_value(argc, argv, &i, "--proto"))) {
             if (vpn_proto_from_name(v, &cfg.proto) != VPN_OK) {
-                fprintf(stderr, "未知协议：%s\n", v);
+                fprintf(stderr, "unknown protocol: %s\n", v);
                 return 2;
             }
         } else if ((v = opt_value(argc, argv, &i, "--port"))) {
@@ -304,7 +304,7 @@ int main(int argc, char **argv)
         } else if ((v = opt_value(argc, argv, &i, "--cert"))) {
             if (!strcmp(v, "ignore")) {
                 cfg.cert_mode = VPN_CERT_IGNORE;
-                fprintf(stderr, "警告：已关闭证书校验，连接可能被中间人攻击\n");
+                fprintf(stderr, "warning: certificate verification is disabled, the connection may be intercepted\n");
             } else {
                 cfg.cert_mode = VPN_CERT_VERIFY;
             }
@@ -320,7 +320,7 @@ int main(int argc, char **argv)
             snprintf(dev_name, sizeof(dev_name), "%s", v);
         } else if ((v = opt_value(argc, argv, &i, "--route"))) {
             if (cfg.route_count >= VPN_MAX_ROUTES) {
-                fprintf(stderr, "--route 数量超过上限 %d\n", VPN_MAX_ROUTES);
+                fprintf(stderr, "too many --route entries (max %d)\n", VPN_MAX_ROUTES);
                 return 2;
             }
             snprintf(cfg.routes[cfg.route_count], 32, "%s", v);
@@ -336,21 +336,21 @@ int main(int argc, char **argv)
         } else if ((v = opt_value(argc, argv, &i, "--stats-interval"))) {
             stats_interval = atoi(v);
         } else {
-            fprintf(stderr, "未知参数：%s（--help 查看用法）\n", argv[i]);
+            fprintf(stderr, "unknown option: %s (see --help)\n", argv[i]);
             return 2;
         }
     }
 
     if (!cfg.host[0]) {
-        fprintf(stderr, "缺少 --server\n");
+        fprintf(stderr, "missing --server\n");
         return 2;
     }
     if (!cfg.username[0]) {
-        fprintf(stderr, "缺少 --user\n");
+        fprintf(stderr, "missing --user\n");
         return 2;
     }
     if (!cfg.password[0] && read_password(cfg.password, sizeof(cfg.password)) != 0) {
-        fprintf(stderr, "无法读取密码\n");
+        fprintf(stderr, "cannot read the password\n");
         return 2;
     }
 
@@ -358,11 +358,11 @@ int main(int argc, char **argv)
 
     if (cfg.proto == VPN_PROTO_PPTP) {
         fprintf(stderr,
-                "警告：PPTP（MPPE）已被证明不安全，GRE(47) 也常被运营商拦截。\n"
-                "      仅在兼容老设备时使用，敏感场景请改用 SSTP 或 L2TP/IPsec。\n");
+                "warning: PPTP (MPPE) is known to be insecure and ISPs often block GRE(47).\n"
+                "         Use it only for legacy devices; prefer SSTP or L2TP/IPsec.\n");
     }
     if (vpn_config_port_needs_hint(&cfg)) {
-        printf("提示：端口 %u 不是 443，可能被防火墙/DPI 识别，穿透性下降\n",
+        printf("note: port %u is not 443, firewalls/DPI may identify it, reducing reachability\n",
                (unsigned)cfg.port);
     }
 
@@ -371,12 +371,12 @@ int main(int argc, char **argv)
     if (!no_tun) {
         rc = vpn_tun_open(dev_name, cfg.mtu, tun_name, sizeof(tun_name), &tun);
         if (rc != VPN_OK) {
-            fprintf(stderr, "创建 TUN 失败（%s）：需要 root/CAP_NET_ADMIN，"
-                            "或使用 --no-tun 只做连通性验证\n", vpn_strerror(rc));
+            fprintf(stderr, "failed to create the TUN device (%s): needs root/CAP_NET_ADMIN, "
+                            "or use --no-tun for a connectivity check only\n", vpn_strerror(rc));
             return 3;
         }
         has_tun = true;
-        printf("TUN 设备：%s（MTU %u）\n", tun_name, (unsigned)cfg.mtu);
+        printf("TUN device: %s (MTU %u)\n", tun_name, (unsigned)cfg.mtu);
     }
 
     memset(&cbs, 0, sizeof(cbs));
@@ -385,7 +385,7 @@ int main(int argc, char **argv)
 
     client = vpn_client_new(&cfg, has_tun ? &tun : NULL, &cbs);
     if (!client) {
-        fprintf(stderr, "初始化客户端失败（检查配置）\n");
+        fprintf(stderr, "failed to initialize the client (check the configuration)\n");
         if (has_tun && tun.destroy)
             tun.destroy(tun.ctx);
         return 3;
@@ -399,7 +399,7 @@ int main(int argc, char **argv)
     wait_timeout_s = cfg.connect_timeout_s + 40;
     rc = vpn_client_connect_blocking(client, wait_timeout_s * 1000);
     if (rc != VPN_OK) {
-        fprintf(stderr, "连接失败：%s\n", vpn_strerror(rc));
+        fprintf(stderr, "connection failed: %s\n", vpn_strerror(rc));
         vpn_client_free(client); /* 内部会 stop + 销毁 TUN */
         vpn_net_cleanup();
         return 4;
@@ -412,12 +412,12 @@ int main(int argc, char **argv)
         bool have_gw = default_gateway(srv_dev, sizeof(srv_dev), &srv_gw) == 0;
 
         vpn_client_get_stats(client, &st);
-        printf("\n已连接：本机 %s  服务器 %s  DNS %s / %s\n", st.local_ip, st.peer_ip,
+        printf("\nconnected: local %s  server %s  DNS %s / %s\n", st.local_ip, st.peer_ip,
                st.dns1[0] ? st.dns1 : "-", st.dns2[0] ? st.dns2 : "-");
         if (st.cipher[0])
-            printf("加密：%s\n", st.cipher);
+            printf("cipher: %s\n", st.cipher);
         if (st.cert_fingerprint[0])
-            printf("服务器证书 SHA-256：%s\n", st.cert_fingerprint);
+            printf("server certificate SHA-256: %s\n", st.cert_fingerprint);
 
         if (has_tun && st.local_ip[0]) {
             uint32_t lip = 0, pip = 0;
@@ -427,7 +427,7 @@ int main(int argc, char **argv)
 
             rc = vpn_tun_configure(tun_name, lip, pip, 0xffffffffu, cfg.mtu);
             if (rc != VPN_OK) {
-                fprintf(stderr, "配置 TUN 地址失败（%s），请手动执行：\n"
+                fprintf(stderr, "failed to configure the TUN address (%s), run this manually:\n"
                                 "  ip addr add %s peer %s dev %s\n  ip link set %s up\n",
                         vpn_strerror(rc), st.local_ip, st.peer_ip, tun_name, tun_name);
             }
@@ -443,17 +443,17 @@ int main(int argc, char **argv)
                     struct sockaddr_in *sin = (struct sockaddr_in *)&ss;
                     if (vpn_tun_add_route_via(srv_dev, sin->sin_addr.s_addr,
                                               0xffffffffu, srv_gw) == VPN_OK)
-                        printf("已为服务器地址添加 /32 直连路由（经 %s）\n", srv_dev);
+                        printf("added a /32 host route to the server via %s\n", srv_dev);
                     else
-                        fprintf(stderr, "警告：服务器 /32 路由添加失败，默认路由切换后可能回路\n");
+                        fprintf(stderr, "warning: failed to add the /32 server route, traffic may loop after the default route switch\n");
                 }
             }
 
             if (cfg.use_default_route) {
                 if (vpn_tun_add_route(tun_name, 0, 0) == VPN_OK)
-                    printf("默认路由已切换到 %s\n", tun_name);
+                    printf("default route switched to %s\n", tun_name);
                 else
-                    fprintf(stderr, "警告：默认路由添加失败，请手动 ip route add default dev %s\n",
+                    fprintf(stderr, "warning: failed to add the default route, run: ip route add default dev %s\n",
                             tun_name);
             }
             for (i = 0; i < cfg.route_count; i++) {
@@ -461,13 +461,13 @@ int main(int argc, char **argv)
                 if (parse_cidr(cfg.routes[i], &dst, &mask) == 0)
                     vpn_tun_add_route(tun_name, dst, mask);
                 else
-                    fprintf(stderr, "路由格式错误：%s\n", cfg.routes[i]);
+                    fprintf(stderr, "invalid route: %s\n", cfg.routes[i]);
             }
         }
         print_stats(&st);
     }
 
-    printf("\n按 Ctrl-C 断开...\n");
+    printf("\npress Ctrl-C to disconnect...\n");
     fflush(stdout);
 
     {
@@ -490,12 +490,12 @@ int main(int argc, char **argv)
     {
         vpn_stats st;
         vpn_client_get_stats(client, &st);
-        printf("\n已断开。累计 RX %llu 包 / %llu 字节，TX %llu 包 / %llu 字节，重连 %u 次\n",
+        printf("\ndisconnected. total RX %llu pkts / %llu bytes, TX %llu pkts / %llu bytes, %u reconnects\n",
                (unsigned long long)st.rx_packets, (unsigned long long)st.rx_bytes,
                (unsigned long long)st.tx_packets, (unsigned long long)st.tx_bytes,
                st.reconnects);
         if (has_tun)
-            printf("提示：TUN %s 的路由/地址随进程退出失效，如需保留请自行管理\n", tun_name);
+            printf("note: routes/addresses of TUN %s disappear when the process exits; manage them yourself to keep them\n", tun_name);
     }
 
     vpn_client_free(client);

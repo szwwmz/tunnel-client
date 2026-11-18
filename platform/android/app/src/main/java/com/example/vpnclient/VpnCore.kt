@@ -165,7 +165,7 @@ object VpnCore {
 
         handle = nativeCreate(cfg, cb)
         if (handle == 0L) {
-            Log.e("vpncore", "nativeCreate 失败（检查服务器地址/用户名）")
+            Log.e("vpncore", "nativeCreate failed (check server address / user name)")
             return false
         }
         nativeSetLogLevel(cfg.last().toIntOrNull() ?: 2)
@@ -176,7 +176,7 @@ object VpnCore {
     fun attachTun(fd: Int): Boolean {
         if (handle == 0L) return false
         val rc = nativeAttachTunFd(handle, fd)
-        if (rc != 0) Log.e("vpncore", "attachTun 失败 rc=$rc")
+        if (rc != 0) Log.e("vpncore", "attachTun failed rc=$rc")
         return rc == 0
     }
 

@@ -23,8 +23,8 @@ BUILD_TOOLS="$SDK/build-tools/34.0.0"
 SSL_DIR="${OPENSSL_ANDROID_DIR:-/tmp/android-ssl}"
 APP="$ROOT/platform/android/app/src/main"
 # 与 Windows 端同一版本号（platform/windows/vpn-gui.rc 同步升）
-APK_VERSION_NAME="${APK_VERSION_NAME:-1.3.15}"
-APK_VERSION_CODE="${APK_VERSION_CODE:-145}"
+APK_VERSION_NAME="${APK_VERSION_NAME:-1.3.16}"
+APK_VERSION_CODE="${APK_VERSION_CODE:-146}"
 OUT="$ROOT/build-android"
 # 产物名带版本号，避免多个版本混在一个固定文件名里
 APK_FILE="vpn-client-android-${APK_VERSION_NAME}.apk"

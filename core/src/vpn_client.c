@@ -105,11 +105,11 @@ static void set_state(vpn_client *c, vpn_state st, const char *fmt, ...)
     vpn_mutex_unlock(&c->lock);
 
     if (st == VPN_STATE_CONNECTED)
-        VPN_INFO("状态：%s（%s）", vpn_state_name(st), detail);
+        VPN_INFO("State: %s (%s)", vpn_state_name(st), detail);
     else if (st == VPN_STATE_FAILED)
-        VPN_ERROR("状态：%s（%s）", vpn_state_name(st), detail);
+        VPN_ERROR("State: %s (%s)", vpn_state_name(st), detail);
     else
-        VPN_INFO("状态：%s（%s）", vpn_state_name(st), detail);
+        VPN_INFO("State: %s (%s)", vpn_state_name(st), detail);
 
     if (c->cbs.on_state)
         c->cbs.on_state(c->cbs.ctx, st, detail);
@@ -153,16 +153,16 @@ static void ppp_cb_send(void *ctx, const uint8_t *frame, size_t len)
     if (c->send_fail <= 3 || c->send_fail % 200 == 0) {
         int saved = vpn_net_last_send_errno();
         if (saved)
-            VPN_WARN("PPP: 发送帧失败（%s，errno=%d），连续 %d 次",
+            VPN_WARN("PPP: frame send failed (%s, errno=%d), %d in a row",
                      vpn_strerror(rc), saved, c->send_fail);
         else
-            VPN_WARN("PPP: 发送帧失败（%s），连续 %d 次", vpn_strerror(rc), c->send_fail);
+            VPN_WARN("PPP: frame send failed (%s), %d in a row", vpn_strerror(rc), c->send_fail);
     }
 
     /* 连续失败 10 次（约几十毫秒的上行量）就认为物理链路已断 */
     if (c->send_fail >= 10 && !c->link_dead) {
         c->link_dead = 1;
-        VPN_ERROR("PPP: 连续 %d 次发送失败，判定链路中断，开始重连", c->send_fail);
+        VPN_ERROR("PPP: %d consecutive send failures, link considered down, reconnecting", c->send_fail);
     }
 }
 
@@ -191,10 +191,10 @@ static void ppp_cb_up(void *ctx, const ppp_net_info *info)
     if (info->dns2)
         ipv4_str(info->dns2, c->stats.dns2, sizeof(c->stats.dns2));
     snprintf(c->stats.cipher, sizeof(c->stats.cipher), "%s",
-             info->using_mschapv2 ? "MPPE-128 (MS-CHAPv2)" : "MPPE(未启用)");
+             info->using_mschapv2 ? "MPPE-128 (MS-CHAPv2)" : "MPPE (not enabled)");
     vpn_mutex_unlock(&c->lock);
 
-    set_state(c, VPN_STATE_CONNECTED, "本机 %s  服务器 %s  DNS %s", lip, pip,
+    set_state(c, VPN_STATE_CONNECTED, "local %s  server %s  DNS %s", lip, pip,
               c->stats.dns1[0] ? c->stats.dns1 : "-");
     publish_stats(c);
 }
@@ -237,15 +237,15 @@ static void ppp_cb_ip(void *ctx, const uint8_t *pkt, size_t len)
 static void ppp_cb_auth_failed(void *ctx, const char *reason)
 {
     vpn_client *c = ctx;
-    VPN_ERROR("认证失败：%s", reason ? reason : "未知原因");
+    VPN_ERROR("authentication failed: %s", reason ? reason : "unknown reason");
     c->last_error = VPN_ERR_AUTH;
-    set_state(c, VPN_STATE_FAILED, "认证失败：%s", reason ? reason : "未知原因");
+    set_state(c, VPN_STATE_FAILED, "authentication failed: %s", reason ? reason : "unknown reason");
 }
 
 static void ppp_cb_closed(void *ctx, const char *reason)
 {
     (void)ctx;
-    VPN_WARN("PPP 关闭：%s", reason ? reason : "-");
+    VPN_WARN("PPP closed: %s", reason ? reason : "-");
 }
 
 /* ------------------------------------------------------------------ */
@@ -262,14 +262,14 @@ static void tp_cb_ppp(void *ctx, const uint8_t *frame, size_t len)
 static void tp_cb_connected(void *ctx)
 {
     vpn_client *c = ctx;
-    set_state(c, VPN_STATE_AUTHENTICATING, "传输通道就绪，开始 PPP 协商");
+    set_state(c, VPN_STATE_AUTHENTICATING, "transport ready, starting PPP negotiation");
 }
 
 static void tp_cb_closed(void *ctx, const char *reason)
 {
     vpn_client *c = ctx;
     if (reason && *reason) {
-        VPN_WARN("传输层断开：%s", reason);
+        VPN_WARN("transport disconnected: %s", reason);
         c->last_error = VPN_ERR_CLOSED;
     }
 }
@@ -353,7 +353,7 @@ static int open_transport(vpn_client *c)
         vpn_pptp_params pp;
         vpn_pptp_cbs cb;
         if (!vpn_pptp_supported()) {
-            VPN_ERROR("当前平台不支持 PPTP（需要 GRE/RAW socket 权限）");
+            VPN_ERROR("PPTP is not supported on this platform (needs GRE/raw socket privileges)");
             return VPN_ERR_UNSUPPORTED;
         }
         memset(&pp, 0, sizeof(pp));
@@ -380,22 +380,22 @@ static int open_transport(vpn_client *c)
 static void close_transport(vpn_client *c)
 {
     if (c->sstp) {
-        vpn_sstp_close(c->sstp, "客户端断开");
+        vpn_sstp_close(c->sstp, "client disconnect");
         vpn_sstp_free(c->sstp);
         c->sstp = NULL;
     }
     if (c->l2tp) {
-        vpn_l2tp_close(c->l2tp, "客户端断开");
+        vpn_l2tp_close(c->l2tp, "client disconnect");
         vpn_l2tp_free(c->l2tp);
         c->l2tp = NULL;
     }
     if (c->pptp) {
-        vpn_pptp_close(c->pptp, "客户端断开");
+        vpn_pptp_close(c->pptp, "client disconnect");
         vpn_pptp_free(c->pptp);
         c->pptp = NULL;
     }
     if (c->ppp) {
-        vpn_ppp_close(c->ppp, "连接结束");
+        vpn_ppp_close(c->ppp, "connection finished");
         vpn_ppp_free(c->ppp);
         c->ppp = NULL;
     }
@@ -416,14 +416,14 @@ static int client_attempt(vpn_client *c)
     c->last_error = VPN_OK;
     c->send_fail = 0;
     c->link_dead = 0;
-    set_state(c, VPN_STATE_CONNECTING, "连接 %s（%s:%u）", c->cfg.host,
+    set_state(c, VPN_STATE_CONNECTING, "connecting %s (%s:%u)", c->cfg.host,
               vpn_proto_name(c->cfg.proto),
               (unsigned)(c->cfg.port ? c->cfg.port
                                      : vpn_proto_default_port(c->cfg.proto)));
 
     rc = open_transport(c);
     if (rc != VPN_OK) {
-        VPN_ERROR("建立传输通道失败：%s", vpn_strerror(rc));
+        VPN_ERROR("failed to establish the transport: %s", vpn_strerror(rc));
         c->last_error = rc;
         close_transport(c);
         return rc;
@@ -466,7 +466,7 @@ static int client_attempt(vpn_client *c)
             rc = vpn_pptp_run_once(c->pptp, 2);
 
         if (rc != VPN_OK && rc != VPN_ERR_TIMEOUT) {
-            VPN_WARN("传输层读失败：%s", vpn_strerror(rc));
+            VPN_WARN("transport read failed: %s", vpn_strerror(rc));
             break;
         }
 
@@ -501,10 +501,10 @@ static int client_attempt(vpn_client *c)
                     if (n == VPN_ERR_TIMEOUT)
                         break;
                     if (n <= 0) {
-                        VPN_DEBUG("tun 读取返回 %d（%s）", n, vpn_strerror(n));
+                        VPN_DEBUG("tun read returned %d (%s)", n, vpn_strerror(n));
                         break;
                     }
-                    VPN_TRACE("tun 收到 %d 字节 IP 包", n);
+                    VPN_TRACE("tun received %d bytes of IP packet", n);
                     if (vpn_ppp_send_ip(c->ppp, ipbuf, (size_t)n) != VPN_OK) {
                         vpn_mutex_lock(&c->lock);
                         c->stats.dropped++;
@@ -535,7 +535,7 @@ static int client_attempt(vpn_client *c)
         /* 数据面持续发不出去 —— 上层是看不出来的（UDP 无连接状态），
          * 必须自己判定，否则断网后界面一直显示"已连接" */
         if (c->link_dead) {
-            VPN_WARN("链路已判定中断，退出本次会话并重连");
+            VPN_WARN("link considered down, leaving this session and reconnecting");
             if (c->last_error == VPN_OK)
                 c->last_error = VPN_ERR_IO;
             break;
@@ -544,7 +544,7 @@ static int client_attempt(vpn_client *c)
         open = c->sstp ? vpn_sstp_is_open(c->sstp)
                        : (c->l2tp ? vpn_l2tp_is_open(c->l2tp) : vpn_pptp_is_open(c->pptp));
         if (!open) {
-            VPN_WARN("传输通道已关闭");
+            VPN_WARN("transport closed");
             if (c->last_error == VPN_OK)
                 c->last_error = VPN_ERR_CLOSED;
             break;
@@ -574,13 +574,13 @@ static CLIENT_THREAD_RET client_worker(void *arg)
 
         /* 自动重连开关：关闭时断开即结束（默认开启，见 vpn_config_init） */
         if (!c->cfg.auto_reconnect) {
-            set_state(c, VPN_STATE_DISCONNECTED, "已断开（自动重连已关闭）");
+            set_state(c, VPN_STATE_DISCONNECTED, "disconnected (auto-reconnect is off)");
             break;
         }
 
         retries++;
         if (c->cfg.max_retries >= 0 && retries > c->cfg.max_retries) {
-            set_state(c, VPN_STATE_FAILED, "连接失败（%s），已达重试上限 %d 次",
+            set_state(c, VPN_STATE_FAILED, "connection failed (%s), retry limit of %d reached",
                       vpn_strerror(rc), c->cfg.max_retries);
             break;
         }
@@ -589,7 +589,7 @@ static CLIENT_THREAD_RET client_worker(void *arg)
         c->stats.reconnects = (uint32_t)retries;
         vpn_mutex_unlock(&c->lock);
 
-        set_state(c, VPN_STATE_RECONNECTING, "第 %d 次重连，%d 秒后重试", retries,
+        set_state(c, VPN_STATE_RECONNECTING, "reconnect attempt %d, retrying in %d s", retries,
                   c->cfg.reconnect_delay_s);
 
         /* 分片睡眠，保证 stop 能及时生效 */
@@ -604,7 +604,7 @@ static CLIENT_THREAD_RET client_worker(void *arg)
     }
 
     if (c->stop_req || c->last_error == VPN_OK)
-        set_state(c, VPN_STATE_DISCONNECTED, "已断开");
+        set_state(c, VPN_STATE_DISCONNECTED, "disconnected");
     else
         set_state(c, VPN_STATE_FAILED, "%s", vpn_strerror(c->last_error));
     c->th_finished = 1;
@@ -626,11 +626,11 @@ vpn_client *vpn_client_new(const vpn_config *cfg, const vpn_tun_ops *tun,
     char err[192];
 
     if (!cfg) {
-        VPN_ERROR("vpn_client_new: cfg 为空");
+        VPN_ERROR("vpn_client_new: cfg is NULL");
         return NULL;
     }
     if (vpn_config_validate(cfg, err, sizeof(err)) != VPN_OK) {
-        VPN_ERROR("配置无效：%s", err);
+        VPN_ERROR("invalid configuration: %s", err);
         return NULL;
     }
 
@@ -648,18 +648,18 @@ vpn_client *vpn_client_new(const vpn_config *cfg, const vpn_tun_ops *tun,
 
     c->state = VPN_STATE_IDLE;
     c->last_error = VPN_OK;
-    snprintf(c->detail, sizeof(c->detail), "未开始");
+    snprintf(c->detail, sizeof(c->detail), "not started");
     vpn_mutex_init(&c->lock);
 
     if (vpn_config_port_needs_hint(cfg))
-        VPN_WARN("端口 %u 不是 443：SSTP 可能被中间设备识别/拦截，穿透性下降",
+        VPN_WARN("port %u is not 443: middleboxes may identify or block SSTP, reducing reachability",
                  (unsigned)cfg->port);
 
     /* L2TP/PPTP 用固定标准端口（UDP/1701、TCP/1723），不允许自定义：
      * 归一化为 0（=协议默认），调用方传什么都不会被采用 */
     if (c->cfg.proto != VPN_PROTO_SSTP && c->cfg.port) {
         if (c->cfg.port != vpn_proto_default_port(c->cfg.proto))
-            VPN_WARN("%s 端口固定为 %s/%u，已忽略指定的 %u",
+            VPN_WARN("%s always uses %s/%u, ignoring the requested %u",
                      vpn_proto_name(c->cfg.proto),
                      c->cfg.proto == VPN_PROTO_L2TP ? "UDP" : "TCP",
                      (unsigned)vpn_proto_default_port(c->cfg.proto),
@@ -680,7 +680,7 @@ static int client_stop_wait(vpn_client *c)
         /* 事件循环是 2ms 一轮，正常情况下几十毫秒内就能退出；
          * 超时说明卡在阻塞的 connect/读操作里，再给一次机会 */
         if (vpn_thread_join(&c->th, 3000) != 0) {
-            VPN_WARN("工作线程 3 秒内未退出，继续等待（可能卡在握手超时）");
+            VPN_WARN("worker thread did not exit within 3 s, still waiting (may be stuck in a handshake timeout)");
             if (vpn_thread_join(&c->th, 15000) != 0)
                 return -1;
         }
@@ -725,7 +725,7 @@ int vpn_client_start(vpn_client *c)
     c->stop_req = 0;
     c->th_finished = 0;
     if (vpn_thread_start(&c->th, client_worker, c) != 0) {
-        VPN_ERROR("启动工作线程失败");
+        VPN_ERROR("failed to start the worker thread");
         return VPN_ERR_IO;
     }
     return VPN_OK;
@@ -785,7 +785,7 @@ int vpn_client_attach_tun(vpn_client *c, const vpn_tun_ops *tun)
     } else {
         c->tun = *tun;
         c->has_tun = true;
-        VPN_INFO("已挂接 TUN（IP 转发开启）");
+        VPN_INFO("TUN attached (IP forwarding enabled)");
     }
     vpn_mutex_unlock(&c->lock);
     return rc;

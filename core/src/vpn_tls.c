@@ -57,7 +57,7 @@ vpn_tls *vpn_tls_new(const vpn_tls_params *p)
     t->sock = p->sock;
     t->ctx = SSL_CTX_new(TLS_client_method());
     if (!t->ctx) {
-        tls_set_error(t, "SSL_CTX_new 失败");
+        tls_set_error(t, "SSL_CTX_new failed");
         free(t);
         return NULL;
     }
@@ -71,26 +71,26 @@ vpn_tls *vpn_tls_new(const vpn_tls_params *p)
     if (p->cert_mode == VPN_CERT_VERIFY) {
         SSL_CTX_set_verify(t->ctx, SSL_VERIFY_PEER, NULL);
         if (!SSL_CTX_set_default_verify_paths(t->ctx))
-            VPN_WARN("TLS: 加载系统默认 CA 失败");
+            VPN_WARN("TLS: failed to load the system default CA store");
         if (p->ca_file && p->ca_file[0]) {
             if (SSL_CTX_load_verify_locations(t->ctx, p->ca_file,
                                               (p->ca_dir && p->ca_dir[0]) ? p->ca_dir : NULL) != 1) {
-                snprintf(t->error, sizeof(t->error), "加载自定义 CA 失败: %s", p->ca_file);
+                snprintf(t->error, sizeof(t->error), "failed to load custom CA: %s", p->ca_file);
                 VPN_ERROR("%s", t->error);
                 SSL_CTX_free(t->ctx);
                 free(t);
                 return NULL;
             }
-            VPN_INFO("TLS: 已加载自定义 CA %s", p->ca_file);
+            VPN_INFO("TLS: custom CA loaded from %s", p->ca_file);
         }
     } else {
         SSL_CTX_set_verify(t->ctx, SSL_VERIFY_NONE, NULL);
-        VPN_WARN("TLS: 已关闭证书校验（不安全，仅用于自签名服务器调试）");
+        VPN_WARN("TLS: certificate verification disabled (insecure, for self-signed server debugging only)");
     }
 
     t->ssl = SSL_new(t->ctx);
     if (!t->ssl) {
-        tls_set_error(t, "SSL_new 失败");
+        tls_set_error(t, "SSL_new failed");
         SSL_CTX_free(t->ctx);
         free(t);
         return NULL;
@@ -103,7 +103,7 @@ vpn_tls *vpn_tls_new(const vpn_tls_params *p)
         if (p->cert_mode == VPN_CERT_VERIFY && p->verify_hostname) {
             SSL_set_hostflags(t->ssl, X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS);
             if (SSL_set1_host(t->ssl, p->server_name) != 1) {
-                snprintf(errbuf, sizeof(errbuf), "设置证书主机名校验失败: %s", p->server_name);
+                snprintf(errbuf, sizeof(errbuf), "failed to enable certificate hostname verification: %s", p->server_name);
                 tls_set_error(t, errbuf);
                 SSL_free(t->ssl);
                 SSL_CTX_free(t->ctx);
@@ -169,7 +169,7 @@ int vpn_tls_handshake(vpn_tls *t)
         int remain = (int)(deadline - vpn_now_ms());
 
         if (remain <= 0) {
-            snprintf(t->error, sizeof(t->error), "TLS 握手超时");
+            snprintf(t->error, sizeof(t->error), "TLS handshake timed out");
             VPN_ERROR("%s", t->error);
             return VPN_ERR_TIMEOUT;
         }
@@ -183,12 +183,12 @@ int vpn_tls_handshake(vpn_tls *t)
         } else {
             long vr = SSL_get_verify_result(t->ssl);
             if (vr != X509_V_OK) {
-                snprintf(t->error, sizeof(t->error), "证书校验失败: %s",
+                snprintf(t->error, sizeof(t->error), "certificate verification failed: %s",
                          X509_verify_cert_error_string(vr));
                 VPN_ERROR("%s", t->error);
                 return VPN_ERR_TLS;
             }
-            tls_set_error(t, "TLS 握手失败");
+            tls_set_error(t, "TLS handshake failed");
             return VPN_ERR_TLS;
         }
     }
@@ -196,10 +196,10 @@ int vpn_tls_handshake(vpn_tls *t)
     t->handshake_done = true;
     snprintf(t->version, sizeof(t->version), "%s", SSL_get_version(t->ssl));
     snprintf(t->cipher, sizeof(t->cipher), "%s", SSL_get_cipher_name(t->ssl));
-    VPN_INFO("TLS 握手完成: %s / %s", t->version, t->cipher);
+    VPN_INFO("TLS handshake complete: %s / %s", t->version, t->cipher);
 
     vpn_tls_peer_fingerprint(t, t->fingerprint, sizeof(t->fingerprint));
-    VPN_INFO("服务器证书 SHA-256: %s", t->fingerprint);
+    VPN_INFO("server certificate SHA-256: %s", t->fingerprint);
     return VPN_OK;
 }
 
@@ -243,7 +243,7 @@ int vpn_tls_read(vpn_tls *t, void *buf, size_t cap, int timeout_ms)
         }
         if (err == SSL_ERROR_ZERO_RETURN)
             return 0;
-        tls_set_error(t, "TLS 读取失败");
+        tls_set_error(t, "TLS read failed");
         return VPN_ERR_IO;
     }
 }
@@ -274,7 +274,7 @@ int vpn_tls_write(vpn_tls *t, const void *buf, size_t len, int timeout_ms)
                 return VPN_ERR_TIMEOUT;
             continue;
         }
-        tls_set_error(t, "TLS 写入失败");
+        tls_set_error(t, "TLS write failed");
         return VPN_ERR_IO;
     }
     return (int)off;

@@ -27,7 +27,7 @@ void ppp_start_ipcp(vpn_ppp *p)
 {
     if (p->ipcp.state == PPP_FSM_REQ_SENT || p->ipcp.state == PPP_FSM_OPEN)
         return;
-    VPN_INFO("认证完成，开始 IPCP 协商");
+    VPN_INFO("authentication complete, starting IPCP negotiation");
     ppp_fsm_open(p, &p->ipcp, PPP_PROTO_IPCP);
 }
 
@@ -36,17 +36,17 @@ void ppp_auth_finish_ok(vpn_ppp *p)
     if (p->auth_done)
         return;
     p->auth_done = true;
-    VPN_INFO("PPP 认证成功 (%s)",
+    VPN_INFO("PPP authentication succeeded (%s)",
              p->auth_proto == PPP_PROTO_PAP ? "PAP" : "CHAP");
     ppp_start_ipcp(p);
 }
 
 void ppp_auth_finish_fail(vpn_ppp *p, const char *reason)
 {
-    VPN_ERROR("PPP 认证失败: %s", reason ? reason : "-");
+    VPN_ERROR("PPP authentication failed: %s", reason ? reason : "-");
     p->auth_done = false;
     if (p->cbs.auth_failed)
-        p->cbs.auth_failed(p->cbs.ctx, reason ? reason : "认证失败");
+        p->cbs.auth_failed(p->cbs.ctx, reason ? reason : "authentication failed");
 }
 
 void ppp_send_chap_response(vpn_ppp *p)
@@ -70,7 +70,7 @@ void ppp_send_chap_response(vpn_ppp *p)
         rc = vpn_mschapv2_nt_response(p->cfg.password, peer_chal, p->auth_challenge,
                                       p->cfg.username, nt_response, p->nt_hash);
         if (rc != VPN_OK) {
-            ppp_auth_finish_fail(p, "MS-CHAPv2 计算 NT-Response 失败");
+            ppp_auth_finish_fail(p, "MS-CHAPv2 failed to compute NT-Response");
             return;
         }
 
@@ -90,7 +90,7 @@ void ppp_send_chap_response(vpn_ppp *p)
                                    p->mppe_recv_key) == VPN_OK) {
             p->has_mppe = true;
         }
-        VPN_DEBUG("发送 MS-CHAPv2 Response (id=%u)", p->chap_id);
+        VPN_DEBUG("sending MS-CHAPv2 Response (id=%u)", p->chap_id);
     } else {
         /* CHAP-MD5: value = MD5(id || password || challenge) */
         uint8_t md5in[1 + 256 + 64];
@@ -107,7 +107,7 @@ void ppp_send_chap_response(vpn_ppp *p)
         buf[pos++] = 16;
         memcpy(buf + pos, digest, 16);
         pos += 16;
-        VPN_DEBUG("发送 CHAP-MD5 Response (id=%u)", p->chap_id);
+        VPN_DEBUG("sending CHAP-MD5 Response (id=%u)", p->chap_id);
     }
 
     /* CHAP 报文: code,id,length,value-size,value,name */
@@ -126,7 +126,7 @@ void ppp_send_chap_response(vpn_ppp *p)
         memcpy(pkt + off, name, namelen);
         off += namelen;
 
-        VPN_DEBUG("CHAP Response 报文: %s", vpn_hexdump(pkt, off));
+        VPN_DEBUG("CHAP Response packet: %s", vpn_hexdump(pkt, off));
         ppp_send_frame(p, PPP_PROTO_CHAP, pkt, off);
     }
 }
@@ -138,7 +138,7 @@ void ppp_auth_start(vpn_ppp *p)
     p->auth_started = true;
 
     if (!p->auth_required) {
-        VPN_INFO("服务器未要求认证，直接进入 IPCP");
+        VPN_INFO("server requested no authentication, going straight to IPCP");
         ppp_auth_finish_ok(p);
         return;
     }
@@ -168,9 +168,9 @@ void ppp_auth_start(vpn_ppp *p)
         off += plen;
 
         ppp_send_frame(p, PPP_PROTO_PAP, pkt, off);
-        VPN_INFO("已发送 PAP Authenticate-Request (用户 %s)", p->cfg.username);
+        VPN_INFO("PAP Authenticate-Request sent (user %s)", p->cfg.username);
     } else {
-        VPN_INFO("等待服务器下发 CHAP Challenge...");
+        VPN_INFO("waiting for the server CHAP Challenge...");
     }
 }
 
@@ -182,7 +182,7 @@ void ppp_auth_rx_chap(vpn_ppp *p, const uint8_t *payload, size_t len)
     if (len < 4)
         return;
 
-    VPN_DEBUG("CHAP 收到: %s", vpn_hexdump(payload, len));
+    VPN_DEBUG("CHAP received: %s", vpn_hexdump(payload, len));
 
     code = payload[0];
     id = payload[1];
@@ -198,7 +198,7 @@ void ppp_auth_rx_chap(vpn_ppp *p, const uint8_t *payload, size_t len)
         size_t namelen = plen > 5 + (size_t)vsize ? plen - 5 - vsize : 0;
 
         if (vsize < 2 || 5 + (size_t)vsize > plen) {
-            ppp_auth_finish_fail(p, "CHAP Challenge 报文格式错误");
+            ppp_auth_finish_fail(p, "malformed CHAP Challenge packet");
             return;
         }
 
@@ -238,17 +238,17 @@ void ppp_auth_rx_chap(vpn_ppp *p, const uint8_t *payload, size_t len)
             p->auth_name[n] = '\0';
         }
 
-        VPN_INFO("收到 CHAP Challenge (id=%u, 算法=0x%02x, 服务器=%s)", id, p->chap_alg,
+        VPN_INFO("got CHAP Challenge (id=%u, algorithm=0x%02x, server=%s)", id, p->chap_alg,
                  p->auth_name[0] ? p->auth_name : "-");
 
         if (p->chap_alg != CHAP_ALG_MSCHAPV2 && p->chap_alg != CHAP_ALG_MD5) {
             char msg[96];
-            snprintf(msg, sizeof(msg), "服务器要求不支持的 CHAP 算法 0x%02x", p->chap_alg);
+            snprintf(msg, sizeof(msg), "server asked for unsupported CHAP algorithm 0x%02x", p->chap_alg);
             ppp_auth_finish_fail(p, msg);
             return;
         }
         if (p->chap_alg == CHAP_ALG_MSCHAPV2 && p->auth_challenge_len != 16) {
-            ppp_auth_finish_fail(p, "MS-CHAPv2 Challenge 长度应为 16 字节");
+            ppp_auth_finish_fail(p, "MS-CHAPv2 Challenge must be 16 bytes");
             return;
         }
 
@@ -263,7 +263,7 @@ void ppp_auth_rx_chap(vpn_ppp *p, const uint8_t *payload, size_t len)
         const uint8_t *value = payload + 4;
 
         if (plen < 4) {
-            ppp_auth_finish_fail(p, "CHAP Success 报文格式错误");
+            ppp_auth_finish_fail(p, "malformed CHAP Success packet");
             return;
         }
 
@@ -282,12 +282,12 @@ void ppp_auth_rx_chap(vpn_ppp *p, const uint8_t *payload, size_t len)
                                                     expect, sizeof(expect)) == VPN_OK) {
                 /* 成功报文形如 "S=<40 hex> M=..."，只比较前 41 字节并忽略大小写 */
                 if (n >= 41 && !ascii_ieq_n(expect, got, 41)) {
-                    VPN_ERROR("服务器 AuthenticatorResponse 不匹配（期望 %s 实收 %s）", expect,
+                    VPN_ERROR("server AuthenticatorResponse mismatch (expected %s, got %s)", expect,
                               got);
-                    ppp_auth_finish_fail(p, "MS-CHAPv2 服务器认证响应不匹配，可能存在中间人攻击");
+                    ppp_auth_finish_fail(p, "MS-CHAPv2 server authenticator mismatch, possible man-in-the-middle attack");
                     return;
                 }
-                VPN_INFO("MS-CHAPv2 服务器认证响应校验通过");
+                VPN_INFO("MS-CHAPv2 server authenticator response verified");
             }
         }
 
@@ -305,15 +305,15 @@ void ppp_auth_rx_chap(vpn_ppp *p, const uint8_t *payload, size_t len)
         if (n) {
             memcpy(msg, payload + 4, n);
             msg[n] = '\0';
-            snprintf(reason, sizeof(reason), "服务器拒绝认证: %s", msg);
+            snprintf(reason, sizeof(reason), "server rejected authentication: %s", msg);
         } else {
-            snprintf(reason, sizeof(reason), "服务器拒绝认证（用户名或密码错误）");
+            snprintf(reason, sizeof(reason), "server rejected authentication (wrong user name or password)");
         }
         ppp_auth_finish_fail(p, reason);
         break;
     }
     default:
-        VPN_DEBUG("CHAP 未知 code=%u", code);
+        VPN_DEBUG("CHAP unknown code=%u", code);
         break;
     }
 }
@@ -330,7 +330,7 @@ void ppp_auth_rx_pap(vpn_ppp *p, const uint8_t *payload, size_t len)
         plen = (uint16_t)len;
 
     if (code == 2) {
-        VPN_INFO("PAP 认证成功");
+        VPN_INFO("PAP authentication succeeded");
         ppp_auth_finish_ok(p);
     } else if (code == 3) {
         char msg[128];
@@ -346,9 +346,9 @@ void ppp_auth_rx_pap(vpn_ppp *p, const uint8_t *payload, size_t len)
         } else {
             msg[0] = '\0';
         }
-        VPN_ERROR("PAP 认证失败: %s", msg);
+        VPN_ERROR("PAP authentication failed: %s", msg);
         p->auth_done = false;
         if (p->cbs.auth_failed)
-            p->cbs.auth_failed(p->cbs.ctx, msg[0] ? msg : "用户名或密码错误");
+            p->cbs.auth_failed(p->cbs.ctx, msg[0] ? msg : "wrong user name or password");
     }
 }

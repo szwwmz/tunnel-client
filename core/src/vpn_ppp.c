@@ -98,7 +98,7 @@ void ppp_fsm_open(vpn_ppp *p, ppp_fsm *fsm, uint16_t proto)
     ppp_send_fsm(p, fsm, proto, PPP_CODE_CONF_REQ, fsm->id, opts, (size_t)len);
     fsm->last_rx_ms = vpn_now_ms();
 
-    VPN_DEBUG("%s: 发送 Configure-Request (id=%u, %d 字节选项)",
+    VPN_DEBUG("%s: sending Configure-Request (id=%u, %d bytes of options)",
               proto == PPP_PROTO_LCP ? "LCP" : "IPCP", fsm->id, len);
 }
 
@@ -108,7 +108,7 @@ void ppp_fsm_close(vpn_ppp *p, ppp_fsm *fsm, uint16_t proto, const char *reason)
         fsm->state == PPP_FSM_ACK_RCVD || fsm->state == PPP_FSM_ACK_SENT) {
         fsm->id++;
         ppp_send_fsm(p, fsm, proto, PPP_CODE_TERM_REQ, fsm->id, NULL, 0);
-        VPN_INFO("%s: 关闭 (%s)", proto == PPP_PROTO_LCP ? "LCP" : "IPCP",
+        VPN_INFO("%s: closing (%s)", proto == PPP_PROTO_LCP ? "LCP" : "IPCP",
                  reason ? reason : "-");
     }
     fsm->state = PPP_FSM_STOPPED;
@@ -129,12 +129,12 @@ void ppp_fsm_tick(vpn_ppp *p, ppp_fsm *fsm, uint16_t proto, int64_t now)
         return;
 
     if (fsm->retries >= PPP_MAX_CONFREQ) {
-        VPN_ERROR("%s: Configure-Request 重传 %d 次无响应，连接失败",
+        VPN_ERROR("%s: no reply after %d Configure-Request retransmits, connection failed",
                   proto == PPP_PROTO_LCP ? "LCP" : "IPCP", fsm->retries);
         fsm->state = PPP_FSM_STOPPED;
         if (proto == PPP_PROTO_LCP) {
             if (p->cbs.closed)
-                p->cbs.closed(p->cbs.ctx, "LCP 协商超时");
+                p->cbs.closed(p->cbs.ctx, "LCP negotiation timed out");
         }
         return;
     }
@@ -143,7 +143,7 @@ void ppp_fsm_tick(vpn_ppp *p, ppp_fsm *fsm, uint16_t proto, int64_t now)
     {
         uint8_t opts[PPP_MAX_OPTS];
         int len = ppp_build_conf_req(p, fsm, proto, opts, sizeof(opts));
-        VPN_DEBUG("%s: 重传 Configure-Request (第 %d 次)",
+        VPN_DEBUG("%s: retransmitting Configure-Request (attempt %d)",
                   proto == PPP_PROTO_LCP ? "LCP" : "IPCP", fsm->retries);
         ppp_send_fsm(p, fsm, proto, PPP_CODE_CONF_REQ, fsm->id, opts, (size_t)len);
     }
@@ -237,7 +237,7 @@ int ppp_process_conf_req(vpn_ppp *p, uint16_t proto, const uint8_t *opts, size_t
         const uint8_t *val = opts + pos + 2;
 
         if (olen < 2 || pos + olen > len) {
-            VPN_WARN("PPP 选项格式错误 (type=%u len=%u)", type, olen);
+            VPN_WARN("PPP option malformed (type=%u len=%u)", type, olen);
             break;
         }
 
@@ -282,12 +282,12 @@ int ppp_process_conf_req(vpn_ppp *p, uint16_t proto, const uint8_t *opts, size_t
                     /* 对端每个 Conf-Req 都带认证选项，只在首次/变更时打印，
                      * 否则重传期间这一行会重复十几遍 */
                     if (p->auth_proto != ap)
-                        VPN_INFO("服务器要求认证: %s%s",
+                        VPN_INFO("server requested authentication: %s%s",
                                  ap == PPP_PROTO_CHAP ? "CHAP" : "PAP",
                                  ap == PPP_PROTO_CHAP
                                      ? (p->chap_alg == CHAP_ALG_MSCHAPV2 ? " (MS-CHAPv2)"
                                         : p->chap_alg == CHAP_ALG_MD5 ? " (MD5)"
-                                                                      : " (未知算法)")
+                                                                      : " (unknown algorithm)")
                                      : "");
                     p->auth_proto = ap;
                     memcpy(out + opos, opts + pos, olen);
@@ -308,7 +308,7 @@ int ppp_process_conf_req(vpn_ppp *p, uint16_t proto, const uint8_t *opts, size_t
                         memcpy(out + opos, fixed, 6);
                         opos += 6;
                         *reject = false;
-                        VPN_WARN("LCP 魔数冲突，已回 Nak 建议新值");
+                        VPN_WARN("LCP magic number conflict, replied Nak with a new value");
                     } else {
                         memcpy(out + opos, opts + pos, olen);
                         opos += olen;
@@ -330,7 +330,7 @@ int ppp_process_conf_req(vpn_ppp *p, uint16_t proto, const uint8_t *opts, size_t
                 opos += olen;
                 break;
             default:
-                VPN_WARN("LCP 未知选项 type=%u，回 Configure-Reject", type);
+                VPN_WARN("LCP unknown option type=%u, sending Configure-Reject", type);
                 *reject = true;
                 memcpy(out + opos, opts + pos, olen);
                 opos += olen;
@@ -353,7 +353,7 @@ int ppp_process_conf_req(vpn_ppp *p, uint16_t proto, const uint8_t *opts, size_t
             case IPCP_OPT_DNS1:
                 if (olen == 6) {
                     p->net.dns1 = vpn_be32(val);
-                    VPN_INFO("IPCP: 服务器请求中携带 DNS1 %s",
+                    VPN_INFO("IPCP: server request carries DNS1 %s",
                              ppp_ip_str(p->net.dns1, (char[16]){ 0 }, 16));
                     memcpy(out + opos, opts + pos, olen);
                     opos += olen;
@@ -366,7 +366,7 @@ int ppp_process_conf_req(vpn_ppp *p, uint16_t proto, const uint8_t *opts, size_t
             case IPCP_OPT_DNS2:
                 if (olen == 6) {
                     p->net.dns2 = vpn_be32(val);
-                    VPN_INFO("IPCP: 服务器请求中携带 DNS2 %s",
+                    VPN_INFO("IPCP: server request carries DNS2 %s",
                              ppp_ip_str(p->net.dns2, (char[16]){ 0 }, 16));
                     memcpy(out + opos, opts + pos, olen);
                     opos += olen;
@@ -398,7 +398,7 @@ int ppp_process_conf_req(vpn_ppp *p, uint16_t proto, const uint8_t *opts, size_t
 void ppp_fsm_rx_ack(vpn_ppp *p, ppp_fsm *fsm, uint8_t id, bool ipcp)
 {
     if (id != fsm->id) {
-        VPN_DEBUG("%s: 忽略过期 Ack (id=%u, 期望 %u)", ipcp ? "IPCP" : "LCP", id, fsm->id);
+        VPN_DEBUG("%s: ignoring stale Ack (id=%u, expected %u)", ipcp ? "IPCP" : "LCP", id, fsm->id);
         return;
     }
     if (fsm->we_acked)
@@ -406,12 +406,12 @@ void ppp_fsm_rx_ack(vpn_ppp *p, ppp_fsm *fsm, uint8_t id, bool ipcp)
 
     fsm->we_acked = true;
     fsm->retries = 0;
-    VPN_INFO("%s: 服务器已确认我方 Configure-Request", ipcp ? "IPCP" : "LCP");
+    VPN_INFO("%s: server acknowledged our Configure-Request", ipcp ? "IPCP" : "LCP");
 
     if (fsm->peer_acked) {
         fsm->state = PPP_FSM_OPEN;
         fsm->opened_ms = vpn_now_ms();
-        VPN_INFO("%s: 进入 Open 状态", ipcp ? "IPCP" : "LCP");
+        VPN_INFO("%s: entered Open state", ipcp ? "IPCP" : "LCP");
         if (ipcp) {
             p->net.local_ip = p->want_local_ip;
             if (!p->net.dns1)
@@ -452,7 +452,7 @@ void ppp_fsm_rx_conf_req(vpn_ppp *p, ppp_fsm *fsm, uint16_t proto, uint8_t id,
         if (fsm->state != PPP_FSM_OPEN) {
             fsm->state = PPP_FSM_OPEN;
             fsm->opened_ms = vpn_now_ms();
-            VPN_INFO("%s: 进入 Open 状态", ipcp ? "IPCP" : "LCP");
+            VPN_INFO("%s: entered Open state", ipcp ? "IPCP" : "LCP");
             if (ipcp) {
                 p->net.local_ip = p->want_local_ip;
                 if (!p->net.dns1)
@@ -476,11 +476,11 @@ void ppp_fsm_rx_term_req(vpn_ppp *p, ppp_fsm *fsm, uint16_t proto, uint8_t id)
 {
     ppp_send_fsm(p, fsm, proto, PPP_CODE_TERM_ACK, id, NULL, 0);
     fsm->state = PPP_FSM_STOPPED;
-    VPN_WARN("%s: 服务器请求断开", proto == PPP_PROTO_LCP ? "LCP" : "IPCP");
+    VPN_WARN("%s: server requested disconnect", proto == PPP_PROTO_LCP ? "LCP" : "IPCP");
     if (proto == PPP_PROTO_LCP) {
         p->up = false;
         if (p->cbs.closed)
-            p->cbs.closed(p->cbs.ctx, "服务器终止了 PPP 会话");
+            p->cbs.closed(p->cbs.ctx, "server terminated the PPP session");
     }
 }
 
@@ -508,9 +508,9 @@ static void handle_lcp(vpn_ppp *p, const uint8_t *pl, size_t len)
      *             做保活，服务器逐条回，若不屏蔽就是每 5 秒一条日志 */
     if (code == PPP_CODE_CONF_REQ || code == PPP_CODE_ECHO_REQ ||
         code == PPP_CODE_ECHO_REPLY || code == PPP_CODE_DISC_REQ)
-        VPN_DEBUG("LCP: 收到 code=%u id=%u len=%u", code, id, plen);
+        VPN_DEBUG("LCP: received code=%u id=%u len=%u", code, id, plen);
     else
-        VPN_INFO("LCP: 收到 code=%u id=%u len=%u", code, id, plen);
+        VPN_INFO("LCP: received code=%u id=%u len=%u", code, id, plen);
 
     switch (code) {
     case PPP_CODE_CONF_REQ:
@@ -520,12 +520,12 @@ static void handle_lcp(vpn_ppp *p, const uint8_t *pl, size_t len)
         ppp_fsm_rx_ack(p, &p->lcp, id, false);
         break;
     case PPP_CODE_CONF_NAK:
-        VPN_DEBUG("LCP: 服务器 Nak 了我方请求（忽略并重发）");
+        VPN_DEBUG("LCP: server Nak\'d our request (ignored, will resend)");
         p->lcp.we_acked = false;
         p->lcp.last_tx_ms = 0;
         break;
     case PPP_CODE_CONF_REJ:
-        VPN_WARN("LCP: 服务器 Reject 了我方选项 %s", vpn_hexdump(pl + 4, plen - 4));
+        VPN_WARN("LCP: server rejected our options %s", vpn_hexdump(pl + 4, plen - 4));
         p->lcp.we_acked = false;
         p->lcp.last_tx_ms = 0;
         break;
@@ -547,7 +547,7 @@ static void handle_lcp(vpn_ppp *p, const uint8_t *pl, size_t len)
     case PPP_CODE_ECHO_REPLY:
         break;
     default:
-        VPN_DEBUG("LCP: 未处理 code=%u", code);
+        VPN_DEBUG("LCP: unhandled code=%u", code);
         break;
     }
 }
@@ -596,14 +596,14 @@ static void handle_ipcp(vpn_ppp *p, const uint8_t *pl, size_t len)
                 if (d)
                     p->net.dns1 = d;   /* 服务器 Nak 出的 DNS 即刻生效 */
                 changed = true;
-                VPN_INFO("IPCP: 服务器下发 DNS1 %s", ppp_ip_str(d, (char[16]){ 0 }, 16));
+                VPN_INFO("IPCP: server assigned DNS1 %s", ppp_ip_str(d, (char[16]){ 0 }, 16));
             } else if (t == IPCP_OPT_DNS2 && l == 6) {
                 uint32_t d = vpn_be32(opts + pos + 2);
                 p->want_dns2 = d;
                 if (d)
                     p->net.dns2 = d;
                 changed = true;
-                VPN_INFO("IPCP: 服务器下发 DNS2 %s", ppp_ip_str(d, (char[16]){ 0 }, 16));
+                VPN_INFO("IPCP: server assigned DNS2 %s", ppp_ip_str(d, (char[16]){ 0 }, 16));
             }
             pos += l;
         }
@@ -623,7 +623,7 @@ static void handle_ipcp(vpn_ppp *p, const uint8_t *pl, size_t len)
 
         /* 服务器拒绝我方提议的选项属于正常协商（比如它不认某个 DNS
          * 选项），随后会带自己的提议重来，不该报成警告 */
-        VPN_DEBUG("IPCP: 服务器 Reject 选项 %s", vpn_hexdump(opts, olen));
+        VPN_DEBUG("IPCP: server rejected options %s", vpn_hexdump(opts, olen));
         /* RFC 1661 §5.4：被拒选项必须从后续 Configure-Request 中移除并重发。
          * 注意按项处理：RouterOS 常只 Reject DNS2，此时 DNS1 仍可继续协商。 */
         while (pos + 2 <= olen) {
@@ -691,7 +691,7 @@ void vpn_ppp_free(vpn_ppp *p)
 {
     free(p);
     if (p)
-        VPN_DEBUG("PPP 会话已释放");
+        VPN_DEBUG("PPP session released");
 }
 
 void vpn_ppp_start(vpn_ppp *p, int64_t now_ms)
@@ -739,7 +739,7 @@ void vpn_ppp_input(vpn_ppp *p, const uint8_t *frame, size_t len, int64_t now_ms)
             if (p->cbs.ip)
                 p->cbs.ip(p->cbs.ctx, payload, plen);
         } else {
-            VPN_TRACE("PPP 尚未 UP，丢弃 %zu 字节 IP 包", plen);
+            VPN_TRACE("PPP not up yet, dropping %zu bytes of IP packet", plen);
         }
         break;
     case PPP_PROTO_IPV6CP: {
@@ -752,7 +752,7 @@ void vpn_ppp_input(vpn_ppp *p, const uint8_t *frame, size_t len, int64_t now_ms)
             memcpy(rej + 2, payload, n);
         ppp_send_fsm(p, &p->lcp, PPP_PROTO_LCP, PPP_CODE_PROTO_REJ,
                      ++p->misc_id, rej, n + 2);
-        VPN_INFO("PPP: 拒绝 IPv6CP 协议（Protocol-Reject）");
+        VPN_INFO("PPP: rejecting IPv6CP (Protocol-Reject)");
         break;
     }
     default: {
@@ -767,7 +767,7 @@ void vpn_ppp_input(vpn_ppp *p, const uint8_t *frame, size_t len, int64_t now_ms)
             memcpy(rej + 2, payload, n);
         ppp_send_fsm(p, &p->lcp, PPP_PROTO_LCP, PPP_CODE_PROTO_REJ,
                      ++p->misc_id, rej, n + 2);
-        VPN_DEBUG("PPP: 未知协议 0x%04x，已回 Protocol-Reject", proto);
+        VPN_DEBUG("PPP: unknown protocol 0x%04x, sent Protocol-Reject", proto);
         break;
     }
     }
@@ -826,7 +826,7 @@ void vpn_ppp_close(vpn_ppp *p, const char *reason)
     }
     p->up = false;
     p->closed = true;
-    VPN_INFO("PPP 会话关闭: %s", reason ? reason : "-");
+    VPN_INFO("PPP session closed: %s", reason ? reason : "-");
 }
 
 bool vpn_ppp_mppe_keys(const vpn_ppp *p, uint8_t send_key[16], uint8_t recv_key[16])

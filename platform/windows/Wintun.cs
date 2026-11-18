@@ -58,19 +58,19 @@ namespace VpnClient
             string dllPath = Path.Combine(AppContext.BaseDirectory, "wintun.dll");
             if (!File.Exists(dllPath))
                 throw new FileNotFoundException(
-                    "未找到 wintun.dll，请从 https://www.wintun.net 下载对应架构的 DLL 放到程序目录");
+                    "wintun.dll not found; download the DLL for your architecture from https://www.wintun.net and put it next to the executable");
 
             _adapter = WintunCreateAdapter(adapterName, tunnelType, IntPtr.Zero);
             if (_adapter == IntPtr.Zero)
                 throw new InvalidOperationException(
-                    $"WintunCreateAdapter 失败（管理员权限？已被占用？）错误码 {Marshal.GetLastWin32Error()}");
+                    $"WintunCreateAdapter failed (administrator rights? adapter already in use?), error {Marshal.GetLastWin32Error()}");
 
             _session = WintunStartSession(_adapter, RingCapacity);
             if (_session == IntPtr.Zero)
             {
                 WintunCloseAdapter(_adapter);
                 throw new InvalidOperationException(
-                    $"WintunStartSession 失败，错误码 {Marshal.GetLastWin32Error()}");
+                    $"WintunStartSession failed, error {Marshal.GetLastWin32Error()}");
             }
             _readEvent = WintunGetReadWaitEvent(_session);
         }

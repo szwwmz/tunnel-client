@@ -62,7 +62,7 @@ static int wintun_load(void)
 
     g_win_mod = LoadLibraryA("wintun.dll");
     if (!g_win_mod) {
-        VPN_ERROR("未找到 wintun.dll（把它放到程序同目录）；将只能做连通性验证");
+        VPN_ERROR("wintun.dll not found (put it next to the executable); only connectivity tests will work");
         g_win_state = -1;
         return -1;
     }
@@ -72,7 +72,7 @@ static int wintun_load(void)
         FARPROC fp = GetProcAddress(g_win_mod, name);                            \
         memcpy(&g_win.field, &fp, sizeof(fp));                                   \
         if (!g_win.field) {                                                     \
-            VPN_ERROR("wintun.dll 缺少导出 %s（版本过旧？需要 0.14+）", name);   \
+            VPN_ERROR("wintun.dll is missing export %s (outdated? 0.14+ required)", name);   \
             g_win_state = -1;                                                   \
             return -1;                                                          \
         }                                                                       \
@@ -140,7 +140,7 @@ static int run_hidden_out(const wchar_t *cmdline, char *out, size_t cap)
     sa.nLength = sizeof(sa);
     sa.bInheritHandle = TRUE;
     if (!CreatePipe(&rd, &wr, &sa, 0)) {
-        VPN_WARN("CreatePipe 失败 (err=%lu)", GetLastError());
+        VPN_WARN("CreatePipe failed (err=%lu)", GetLastError());
         return -1;
     }
     SetHandleInformation(rd, HANDLE_FLAG_INHERIT, 0);
@@ -161,7 +161,7 @@ static int run_hidden_out(const wchar_t *cmdline, char *out, size_t cap)
 
     if (!CreateProcessW(NULL, buf, NULL, NULL, TRUE, CREATE_NO_WINDOW,
                         NULL, NULL, &si, &pi)) {
-        VPN_WARN("执行命令失败 (err=%lu): %ls", GetLastError(), cmdline);
+        VPN_WARN("command failed (err=%lu): %ls", GetLastError(), cmdline);
         CloseHandle(rd);
         CloseHandle(wr);
         if (nul != INVALID_HANDLE_VALUE)
@@ -209,9 +209,9 @@ static int run_hidden_out(const wchar_t *cmdline, char *out, size_t cap)
 
     if (code != 0) {
         if (out && out[0])
-            VPN_DEBUG("命令返回 %lu: %ls | %s", code, cmdline, out);
+            VPN_DEBUG("command returned %lu: %ls | %s", code, cmdline, out);
         else
-            VPN_DEBUG("命令返回 %lu: %ls", code, cmdline);
+            VPN_DEBUG("command returned %lu: %ls", code, cmdline);
     }
     return (int)code;
 }
@@ -318,15 +318,15 @@ int vpn_tun_open(const char *dev_name, uint32_t mtu, char *name_out, size_t name
     t->adapter = g_win.CreateAdapter(wname, L"VPNClient", NULL);
     if (!t->adapter) {
         err = GetLastError();
-        VPN_ERROR("创建 Wintun 适配器失败 (err=%lu)%s", err,
-                  err == ERROR_ACCESS_DENIED ? "：请以管理员身份运行" : "");
+        VPN_ERROR("failed to create the Wintun adapter (err=%lu)%s", err,
+                  err == ERROR_ACCESS_DENIED ? ": please run as administrator" : "");
         free(t);
         return VPN_ERR_IO;
     }
 
     t->session = g_win.StartSession(t->adapter, WIN_TUN_RING);
     if (!t->session) {
-        VPN_ERROR("启动 Wintun 会话失败 (err=%lu)", GetLastError());
+        VPN_ERROR("failed to start the Wintun session (err=%lu)", GetLastError());
         g_win.CloseAdapter(t->adapter);
         free(t);
         return VPN_ERR_IO;
@@ -342,7 +342,7 @@ int vpn_tun_open(const char *dev_name, uint32_t mtu, char *name_out, size_t name
     out->destroy = win_destroy;
     out->ctx = t;
 
-    VPN_INFO("Wintun 适配器就绪: %s", t->name);
+    VPN_INFO("Wintun adapter ready: %s", t->name);
     if (mtu)
         vpn_tun_configure(t->name, 0, 0, 0, mtu);
     return VPN_OK;
@@ -368,7 +368,7 @@ int vpn_tun_configure(const char *dev_name, uint32_t local_ip, uint32_t peer_ip,
         swprintf(cmd, 768, L"netsh interface ipv4 set address name=\"%ls\" source=static "
                            L"address=%ls mask=%ls", wname, wip, wmask);
         run_hidden(cmd);
-        VPN_INFO("接口 %s 地址设为 %s/%s", dev_name, ip, mask);
+        VPN_INFO("interface %s address set to %s/%s", dev_name, ip, mask);
     }
 
     if (mtu) {
@@ -509,7 +509,7 @@ int vpn_tun_set_dns_pref(const char *dev_name, uint32_t dns1, uint32_t dns2, int
                  L"netsh interface ipv4 set interface \"%ls\" metric=%d",
                  wname, metric);
         if (run_hidden(cmd) != 0)
-            VPN_WARN("设置接口 %s 度量失败，DNS 可能不会生效", dev_name);
+            VPN_WARN("failed to set the interface metric for %s, DNS may not take effect", dev_name);
     }
 
     run_hidden(L"ipconfig /flushdns");

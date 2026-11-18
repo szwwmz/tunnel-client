@@ -63,7 +63,7 @@ void vpn_rand_bytes(void *out, size_t len)
         int64_t now = vpn_now_ms();
         for (size_t i = 0; i < len; i++)
             p[i] = (uint8_t)(((uint64_t)now >> ((i % 8) * 8)) ^ (seed += 0x9e3779b9u));
-        VPN_ERROR("RAND_bytes 失败，使用弱随机兜底（证书/密钥强度下降）");
+        VPN_ERROR("RAND_bytes failed, falling back to weak randomness (reduced key and certificate strength)");
     }
 }
 
