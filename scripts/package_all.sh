@@ -53,3 +53,20 @@ cp -f "$ROOT/LICENSE" "$DIST/linux/LICENSE.txt"
 
 echo "生成: $OUT"
 ls -lh "$OUT"
+
+# 自动把顶层汇总 zip 同步到远端（只提交 dist/*.zip，明细目录仍被忽略）
+# 跳过方式：SKIP_GIT=1 scripts/package_all.sh
+if [ "${SKIP_GIT:-0}" != "1" ] && git -c safe.directory="$ROOT" -C "$ROOT" remote get-url origin >/dev/null 2>&1; then
+    REL="$(realpath --relative-to="$ROOT" "$OUT")"
+    git -c safe.directory="$ROOT" -C "$ROOT" add -f "$REL"
+    if ! git -c safe.directory="$ROOT" -C "$ROOT" diff --cached --quiet; then
+        git -c safe.directory="$ROOT" -C "$ROOT" commit -q -m "build: release bundle $(basename "$OUT")"
+        if git -c safe.directory="$ROOT" -C "$ROOT" push -q origin HEAD; then
+            echo "已同步到远端: $(basename "$OUT")"
+        else
+            echo "警告：git push 失败，请手动推送" >&2
+        fi
+    else
+        echo "产物无变化，未产生提交"
+    fi
+fi
