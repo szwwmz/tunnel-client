@@ -41,7 +41,7 @@ import android.widget.Toast
 class MainActivity : Activity(), UiBus.Listener {
 
     companion object {
-        const val VERSION = "1.3.14"
+        const val VERSION = "1.3.15"
 
         private const val PREFS = "vpn-gui"
         private const val REQ_VPN = 100
@@ -479,6 +479,9 @@ class MainActivity : Activity(), UiBus.Listener {
     private fun showAbout() {
         val zhNotes =
             "v$VERSION\n" +
+            "  · 修复 CALL_CONNECTED 原地构造时 memcpy 源目标重叠（未定义行为，\n" +
+            "    gcc -Wrestrict 报警）；改为 memmove 并补回归用例\n" +
+            "  · 修复 L2TP/IPsec 域名拷贝被静默截断（IKE host 64 → 256 字节）\n" +
             "  · 合规：随包提供第三方组件声明（Wintun / OpenSSL / NDK / Kotlin），\n" +
             "    许可全文见「第三方组件」按钮，与 Windows 包内的 NOTICES 一致\n" +
             "  · 合规：源文件补充 SPDX 许可标识与版权头；应用图标确认自绘原创\n" +
@@ -525,6 +528,10 @@ class MainActivity : Activity(), UiBus.Listener {
 
         val enNotes =
             "v$VERSION\n" +
+            "  · Fixed UB: in-place memcpy overlap when building CALL_CONNECTED" +
+            "    (gcc -Wrestrict); switched to memmove plus a regression test\n" +
+            "  · Fixed silent truncation of long L2TP/IPsec host names" +
+            "    (IKE host 64 -> 256 bytes)\n" +
             "  · Compliance: third-party notices (Wintun / OpenSSL / NDK /" +
             "    Kotlin) now ship with the package, viewable via the" +
             "    \"Third-party\" button and identical to the Windows NOTICES\n" +

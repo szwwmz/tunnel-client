@@ -8,6 +8,7 @@
 #include "vpncore/vpn_sstp.h"
 
 #include <stdint.h>
+#include <string.h>
 
 static uint16_t be16(const uint8_t *p)
 {
@@ -30,6 +31,25 @@ TEST(sstp_attr_basic)
 
     /* 容量不足必须拒绝 */
     CHECK_EQ_INT(vpn_sstp_build_attr(buf, 5, SSTP_ATTR_ENCAPSULATED_PROTOCOL_ID, encap, 2), -1);
+}
+
+/* CALL_CONNECTED 是原地构造：value 直接指向输出区里的 attrs+4。
+ * 以前这里走 memcpy，源目标完全重叠属未定义行为（gcc -Wrestrict 报错），
+ * 现改为 memmove；本用例锁定该用法必须继续得到正确结果。 */
+TEST(sstp_attr_in_place_overlap)
+{
+    uint8_t attrs[8];
+    int n;
+
+    memset(attrs, 0xAA, sizeof(attrs));
+    attrs[4] = 0x00;
+    attrs[5] = 0x01;                       /* Encap = PPP */
+    n = vpn_sstp_build_attr(attrs, sizeof(attrs),
+                            SSTP_ATTR_ENCAPSULATED_PROTOCOL_ID, attrs + 4, 2);
+    CHECK_EQ_INT(n, 6);
+    CHECK_EQ_INT(attrs[1], SSTP_ATTR_ENCAPSULATED_PROTOCOL_ID);
+    CHECK_EQ_INT(be16(attrs + 2), 6);
+    CHECK_EQ_INT(be16(attrs + 4), SSTP_ENCAP_PPP);
 }
 
 TEST(sstp_control_call_connect_request)
