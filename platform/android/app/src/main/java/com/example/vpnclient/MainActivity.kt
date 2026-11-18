@@ -11,9 +11,11 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.RippleDrawable
 import android.net.VpnService
 import android.os.Bundle
 import android.text.InputType
@@ -152,17 +154,50 @@ class MainActivity : Activity(), UiBus.Listener {
     // ---------------- 界面构建 ----------------
 
     private fun buildUi(): View {
-        /* 顶部固定状态条：整页可以滚动，状态始终留在顶部可见；
-         * 圆点颜色区分断开（灰）/ 连接中（橙）/ 已连接（绿）/ 失败（红） */
+        /* 外观：浅灰底 + 白色卡片 + 蓝色主按钮，输入框统一浅灰圆角 */
+        val cBg = 0xFFF2F5F9.toInt()
+        val cText = 0xFF0F172A.toInt()
+        val cSub = 0xFF64748B.toInt()
+        val cPrimary = 0xFF2563EB.toInt()
+
+        /* 顶部固定区：标题 + 版本 + 状态卡，下面的内容整体滚动时它不动 */
+        val header = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Color.WHITE)
+            setPadding(dp(20), dp(18), dp(20), dp(16))
+            elevation = dp(2).toFloat()
+        }
+        header.addView(LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            addView(TextView(this@MainActivity).apply {
+                text = "tunnel-client"
+                textSize = 21f
+                setTextColor(cText)
+                setTypeface(typeface, Typeface.BOLD)
+            }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            /* 版本说明入口放到标题右侧，省掉一个占满整行的按钮 */
+            addView(TextView(this@MainActivity).apply {
+                text = L.t("版本说明", "Release notes")
+                textSize = 12f
+                setTextColor(cPrimary)
+                setPadding(dp(10), dp(8), 0, dp(8))
+                setOnClickListener { showAbout() }
+            })
+        })
+        header.addView(TextView(this).apply {
+            text = L.t("v$VERSION · 协议 SSTP / L2TP",
+                       "v$VERSION · SSTP / L2TP protocols")
+            textSize = 12f
+            setTextColor(cSub)
+            setPadding(0, dp(2), 0, 0)
+        })
+
         statusCard = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(14), dp(12), dp(14), dp(12))
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-                setMargins(dp(20), dp(16), dp(20), 0)
-            }
+            background = rounded(0xFFF1F5F9.toInt(), 12)
         }
         statusDot = TextView(this).apply {
             text = "●"
@@ -185,27 +220,21 @@ class MainActivity : Activity(), UiBus.Listener {
             }
             addView(statusSub)
         }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        header.addView(statusCard, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(14) })
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(20), dp(20), dp(20), dp(16))
+            setPadding(dp(20), dp(16), dp(20), dp(28))
         }
 
-        root.addView(TextView(this).apply {
-            text = L.t("tunnel-client", "tunnel-client")
-            textSize = 20f
-            setTypeface(typeface, Typeface.BOLD)
-        })
-        root.addView(TextView(this).apply {
-            text = L.t("v$VERSION · 协议 SSTP / L2TP",
-                       "v$VERSION · SSTP / L2TP protocols")
-            textSize = 12f
-            setTextColor(Color.GRAY)
-            setPadding(0, dp(2), 0, dp(10))
-        })
+        // ---- 连接参数卡片 ----
+        val cardServer = card()
 
         // 协议
         protoSpinner = Spinner(this).apply {
+            background = null
             adapter = ArrayAdapter(this@MainActivity,
                 android.R.layout.simple_spinner_dropdown_item, PROTO_NAMES)
             onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
@@ -215,10 +244,11 @@ class MainActivity : Activity(), UiBus.Listener {
                 override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
             }
         }
-        root.addView(label(L.t("协议", "Protocol")))
-        root.addView(protoSpinner)
+        cardServer.addView(label(L.t("协议", "Protocol")))
+        cardServer.addView(spinnerBox(protoSpinner), fillParams(dp(6)))
 
         certSpinner = Spinner(this).apply {
+            background = null
             adapter = ArrayAdapter(this@MainActivity,
                 android.R.layout.simple_spinner_dropdown_item, CERT_NAMES)
             onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
@@ -231,14 +261,9 @@ class MainActivity : Activity(), UiBus.Listener {
         certRow = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             addView(label(L.t("证书校验（仅 SSTP）", "Certificate check (SSTP only)")))
-            addView(certSpinner)
+            addView(spinnerBox(certSpinner), fillParams(dp(6)))
         }
-        root.addView(certRow)
-        warnText = TextView(this).apply {
-            textSize = 12f
-            setPadding(0, dp(4), 0, 0)
-        }
-        root.addView(warnText)
+        cardServer.addView(certRow)
 
         hostInput = EditText(this).apply {
             hint = L.t("服务器地址 / 域名", "Server address / hostname")
@@ -253,121 +278,215 @@ class MainActivity : Activity(), UiBus.Listener {
             hint = L.t("密码", "Password")
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
         }
-        root.addView(label(L.t("服务器", "Server")))
-        root.addView(hostInput)
-        root.addView(portInput)
-        root.addView(userInput)
-        root.addView(passInput)
-
-        // 选项
-        routeAllBox = CheckBox(this).apply {
-            text = L.t("接管全部流量（不勾则只接管私有网段）",
-                       "Route all traffic (off: private ranges only)")
-        }
-        vpnDnsBox = CheckBox(this).apply { text = L.t("接管 DNS", "Use VPN DNS") }
-        debugBox = CheckBox(this).apply {
-            text = L.t("输出调试日志（排障用，默认关闭）",
-                       "Debug logs (troubleshooting, off by default)")
-        }
-        root.addView(optionGroup())
-
-        // 连接按钮
-        val btnRow = LinearLayout(this).apply {
+        cardServer.addView(label(L.t("服务器", "Server")))
+        cardServer.addView(LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            setPadding(0, dp(8), 0, dp(4))
-        }
-        btnConnect = Button(this).apply {
-            text = L.t("连接", "Connect")
-            setOnClickListener { savePrefs(); startConnect() }
-        }
-        btnDisconnect = Button(this).apply {
-            text = L.t("断开", "Disconnect")
-            setOnClickListener {
-                VpnClientService.stop(this@MainActivity)
-                renderState(VpnCore.STATE_DISCONNECTED, L.t("已断开", "Disconnected"))
-            }
-        }
-        btnRow.addView(btnConnect, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-        btnRow.addView(btnDisconnect, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-        root.addView(btnRow)
+            addView(field(hostInput), LinearLayout.LayoutParams(0, dp(44), 1f))
+            addView(field(portInput), LinearLayout.LayoutParams(dp(96), dp(44)).apply {
+                leftMargin = dp(8)
+            })
+        }, fillParams(dp(6)))
 
-        val about = Button(this).apply {
-            text = L.t("版本说明", "Release notes")
-            setOnClickListener { showAbout() }
-        }
-        root.addView(about)
+        cardServer.addView(label(L.t("账号", "Username")))
+        cardServer.addView(field(userInput), fillParams(dp(6)))
 
-        // 收发统计
+        cardServer.addView(label(L.t("密码", "Password")))
+        cardServer.addView(field(passInput), fillParams(dp(6)))
+
+        warnText = TextView(this).apply {
+            textSize = 12f
+            setPadding(0, dp(8), 0, 0)
+        }
+        cardServer.addView(warnText)
+        root.addView(cardServer, cardParams())
+
+        // ---- 选项卡片 ----
+        val cardOpt = card()
+        routeAllBox = optionBox(L.t("接管全部流量（不勾则只接管私有网段）",
+                                    "Route all traffic (off: private ranges only)"))
+        vpnDnsBox = optionBox(L.t("接管 DNS", "Use VPN DNS"))
+        debugBox = optionBox(L.t("输出调试日志（排障用，默认关闭）",
+                                 "Debug logs (troubleshooting, off by default)"))
+        cardOpt.addView(routeAllBox)
+        cardOpt.addView(vpnDnsBox)
+        cardOpt.addView(debugBox)
+        root.addView(cardOpt, cardParams())
+
+        // ---- 连接 / 断开 ----
+        btnConnect = primaryButton(L.t("连接", "Connect")) { savePrefs(); startConnect() }
+        btnDisconnect = ghostButton(L.t("断开", "Disconnect")) {
+            VpnClientService.stop(this@MainActivity)
+            renderState(VpnCore.STATE_DISCONNECTED, L.t("已断开", "Disconnected"))
+        }
+        root.addView(btnConnect, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(52)).apply { topMargin = dp(18) })
+        root.addView(btnDisconnect, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(48)).apply { topMargin = dp(10) })
+
+        // ---- 统计与日志卡片 ----
+        val cardLog = card()
+        cardLog.addView(LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            addView(TextView(this@MainActivity).apply {
+                text = L.t("运行日志", "Session log")
+                textSize = 13f
+                setTextColor(cText)
+                setTypeface(typeface, Typeface.BOLD)
+            }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            addView(logAction(L.t("复制", "Copy")) { copyLog() })
+            addView(logAction(L.t("清空", "Clear")) {
+                UiBus.clearLogs()
+                toast(L.t("日志已清空", "Log cleared"))
+            })
+        })
         statsText = TextView(this).apply {
             text = L.t("收发 0 B / 0 B", "Traffic 0 B / 0 B")
             textSize = 12f
-            setTextColor(Color.GRAY)
-            setPadding(0, dp(10), 0, 0)
+            setTextColor(cSub)
+            setPadding(0, dp(8), 0, 0)
         }
-        root.addView(statsText)
-
-        // 日志
-        val logBtnRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setPadding(0, dp(10), 0, dp(4))
-        }
-        logBtnRow.addView(Button(this).apply {
-            text = L.t("清空日志", "Clear log")
-            setOnClickListener {
-                UiBus.clearLogs()
-                toast(L.t("日志已清空", "Log cleared"))
-            }
-        }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-        logBtnRow.addView(Button(this).apply {
-            text = L.t("复制日志", "Copy log")
-            setOnClickListener { copyLog() }
-        }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-        root.addView(logBtnRow)
+        cardLog.addView(statsText)
 
         logText = TextView(this).apply {
             textSize = 11f
             typeface = Typeface.MONOSPACE
             movementMethod = ScrollingMovementMethod()
-            setBackgroundColor(Color.parseColor("#F5F5F5"))
-            setPadding(dp(8), dp(8), dp(8), dp(8))
+            setTextColor(0xFFCBD5E1.toInt())
+            setBackground(rounded(0xFF0F172A.toInt(), 12))
+            setPadding(dp(12), dp(10), dp(12), dp(10))
         }
-        scroll = ScrollView(this).apply {
-            addView(logText)
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(220))
-        }
-        root.addView(scroll)
+        scroll = ScrollView(this).apply { addView(logText) }
+        cardLog.addView(scroll, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(200)).apply { topMargin = dp(10) })
+        root.addView(cardLog, cardParams())
 
         root.addView(TextView(this).apply {
             text = L.t("作者：", "Author: ") + L.AUTHOR
             textSize = 11f
-            setTextColor(Color.GRAY)
-            setPadding(0, dp(14), 0, 0)
+            setTextColor(0xFF94A3B8.toInt())
+            gravity = Gravity.CENTER
+            setPadding(0, dp(18), 0, 0)
         })
 
-        /* 外层改成竖向 LinearLayout：状态条固定在顶部，下面的表单与日志才滚动 */
+        /* 外层：顶部固定区不动，下面的内容整体滚动 */
+        val sc = ScrollView(this).apply {
+            addView(root)
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f)
+        }
         val wrapper = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.WHITE)
-            addView(statusCard)
-            addView(ScrollView(this@MainActivity).apply { addView(root) })
+            setBackgroundColor(cBg)
+            addView(header)
+            addView(sc)
         }
         return wrapper
     }
 
-    private fun optionGroup(): LinearLayout = LinearLayout(this).apply {
+    // ---------------- 界面样式 ----------------
+
+    /** 圆角填充背景 */
+    private fun rounded(color: Int, radiusDp: Int): GradientDrawable =
+        GradientDrawable().apply {
+            cornerRadius = dp(radiusDp).toFloat()
+            setColor(color)
+        }
+
+    /** 白色卡片：圆角 + 轻阴影 + 内边距 */
+    private fun card(): LinearLayout = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
-        setPadding(0, dp(8), 0, 0)
-        addView(routeAllBox)
-        addView(vpnDnsBox)
-        addView(debugBox)
+        setPadding(dp(16), dp(14), dp(16), dp(16))
+        background = rounded(Color.WHITE, 16)
+        elevation = dp(1).toFloat()
+    }
+
+    private fun cardParams(): LinearLayout.LayoutParams =
+        LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(14) }
+
+    /** 满宽 + 指定上边距，用于卡片内的控件 */
+    private fun fillParams(topDp: Int): LinearLayout.LayoutParams =
+        LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(topDp) }
+
+    /** 输入框：浅灰圆角，去掉默认下划线 */
+    private fun field(et: EditText): EditText = et.apply {
+        textSize = 15f
+        setTextColor(0xFF0F172A.toInt())
+        setHintTextColor(0xFF94A3B8.toInt())
+        setPadding(dp(12), dp(2), dp(12), dp(2))
+        background = rounded(0xFFF1F5F9.toInt(), 10)
+        setSingleLine(true)
+    }
+
+    /** 下拉框：套一层浅灰圆角背景，右侧补 ▾（系统箭头会被背景盖掉） */
+    private fun spinnerBox(sp: Spinner): LinearLayout = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        background = rounded(0xFFF1F5F9.toInt(), 10)
+        setPadding(dp(6), 0, dp(12), 0)
+        addView(sp, LinearLayout.LayoutParams(0, dp(46), 1f))
+        addView(TextView(this@MainActivity).apply {
+            text = "▾"
+            textSize = 14f
+            setTextColor(0xFF64748B.toInt())
+        })
     }
 
     private fun label(t: String): TextView = TextView(this).apply {
         text = t
         textSize = 12f
-        setTextColor(Color.GRAY)
-        setPadding(0, dp(8), 0, 0)
+        setTextColor(0xFF64748B.toInt())
+        setPadding(0, dp(12), 0, 0)
+    }
+
+    private fun optionBox(text: String): CheckBox = CheckBox(this).apply {
+        this.text = text
+        textSize = 14f
+        setTextColor(0xFF0F172A.toInt())
+        buttonTintList = ColorStateList.valueOf(0xFF2563EB.toInt())
+        setPadding(0, dp(4), 0, dp(4))
+    }
+
+    /** 主按钮：蓝底白字，带按下涟漪 */
+    private fun primaryButton(text: String, onClick: () -> Unit): Button = Button(this).apply {
+        this.text = text
+        textSize = 16f
+        isAllCaps = false
+        setTextColor(Color.WHITE)
+        setTypeface(typeface, Typeface.BOLD)
+        stateListAnimator = null
+        background = RippleDrawable(ColorStateList.valueOf(0x33FFFFFF),
+            rounded(0xFF2563EB.toInt(), 14), null)
+        setOnClickListener { onClick() }
+    }
+
+    /** 次要按钮：白底描边 */
+    private fun ghostButton(text: String, onClick: () -> Unit): Button = Button(this).apply {
+        this.text = text
+        textSize = 15f
+        isAllCaps = false
+        setTextColor(0xFF334155.toInt())
+        stateListAnimator = null
+        background = RippleDrawable(ColorStateList.valueOf(0x14000000),
+            GradientDrawable().apply {
+                cornerRadius = dp(14).toFloat()
+                setColor(Color.WHITE)
+                setStroke(dp(1), 0xFFCBD5E1.toInt())
+            }, null)
+        setOnClickListener { onClick() }
+    }
+
+    /** 日志卡右上角的小文字按钮 */
+    private fun logAction(text: String, onClick: () -> Unit): TextView = TextView(this).apply {
+        this.text = text
+        textSize = 12f
+        setTextColor(0xFF2563EB.toInt())
+        setPadding(dp(10), dp(8), 0, dp(8))
+        setOnClickListener { onClick() }
     }
 
     private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
